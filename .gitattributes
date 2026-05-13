@@ -1,3 +1,5 @@
+*.db filter=lfs diff=lfs merge=lfs -text
+*.tflite filter=lfs diff=lfs merge=lfs -text
 assets/databases/usda.db filter=lfs diff=lfs merge=lfs -text
 assets/models/midas_v2_small.tflite filter=lfs diff=lfs merge=lfs -text
 assets/models/yolov8n.tflite filter=lfs diff=lfs merge=lfs -text
