@@ -209,16 +209,14 @@ function FoodCard({
               {label}
             </Text>
           </Pressable>
-          <Pressable
-            className="bg-white rounded-full px-3 py-1.5"
-            onPress={() => onSave(label, nutrition)}
-            disabled={loading || !nutrition}
-            style={{ opacity: loading || !nutrition ? 0.4 : 1 }}
-          >
-            <Text className="text-black text-[11px] font-bold">
-              {loading ? "Loading…" : "Save"}
-            </Text>
-          </Pressable>
+          {!loading && nutrition && (
+            <Pressable
+              className="bg-white rounded-full px-3 py-1.5"
+              onPress={() => onSave(label, nutrition)}
+            >
+              <Text className="text-black text-[11px] font-bold">Save</Text>
+            </Pressable>
+          )}
         </RNAnimated.View>
       )}
 
@@ -279,6 +277,15 @@ function FoodCard({
             <NutrientTag label="Fiber" value={nutrition.fiber} unit="g" />
             <NutrientTag label="Sugar" value={nutrition.sugar} unit="g" />
           </View>
+        )}
+        {/* after the nutrition grid View */}
+        {!loading && nutrition && (
+          <Pressable
+            className="mt-3 bg-white rounded-xl py-2 items-center"
+            onPress={() => onSave(label, nutrition)}
+          >
+            <Text className="text-black text-xs font-bold">Save to log</Text>
+          </Pressable>
         )}
       </RNAnimated.View>
     </RNAnimated.View>
@@ -469,6 +476,7 @@ export default function ScanScreen() {
       customName: label,
       servingsConsumed: 1,
     });
+    removeFood(label);
   };
   const isAiMode = activeMode === 0;
 

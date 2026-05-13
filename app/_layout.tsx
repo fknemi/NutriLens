@@ -15,6 +15,7 @@ import { StyleSheet, View } from "react-native";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { getCountry } from "@/services/geo";
 import { File, Directory, Paths } from "expo-file-system";
+import { useStepCounter } from "@/hooks/use-step-counter";
 import { downloadCountryDatabase } from "@/services/open-food-facts";
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -29,6 +30,7 @@ const styles = StyleSheet.create({
 });
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  useStepCounter();
   const [loaded] = useFonts({
     "Geologica-Thin": require("@/assets/fonts/geologica-v5-latin-100.ttf"),
     "Geologica-ExtraLight": require("@/assets/fonts/geologica-v5-latin-200.ttf"),

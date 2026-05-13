@@ -1,24 +1,58 @@
-import { View, Text, Image } from "react-native";
+import { View, Text, Image, Pressable } from "react-native";
 import Svg, { Path, Defs, Stop, LinearGradient } from "react-native-svg";
-import { v4 as uuidv4 } from "@/uuid";
+
+import { useScannedFoodStore } from "@/stores/useScannedFoodStore";
+
+function QuantityControl({ id }: { id: string }) {
+  const quantity = useScannedFoodStore(
+    (s) => s.foods.find((f) => f.id === id)?.servingsConsumed ?? 1,
+  );
+  const updateFood = useScannedFoodStore((s) => s.updateFood);
+
+  return (
+    <View className="flex-row items-center gap-2">
+      <Pressable
+        onPress={() =>
+          updateFood(id, { servingsConsumed: Math.max(0.5, quantity - 0.5) })
+        }
+        className="w-7 h-7 rounded-full bg-[#EDEFF3] items-center justify-center"
+      >
+        <Text className="text-gray-600 text-base font-medium">−</Text>
+      </Pressable>
+
+      <Text className="text-sm font-semibold w-8 text-center" numberOfLines={1}>{quantity}</Text>
+
+      <Pressable
+        onPress={() => updateFood(id, { servingsConsumed: quantity + 0.5 })}
+        className="w-7 h-7 rounded-full bg-[#EDEFF3] items-center justify-center"
+      >
+        <Text className="text-gray-600 text-base font-medium">+</Text>
+      </Pressable>
+    </View>
+  );
+}
 function ScanLogCard({ logs }) {
   // destructure props
   console.log(logs);
+  const fmt = (n: number) => parseFloat((n).toFixed(3));
   return (
     <View className="bg-white rounded-3xl px-7 py-5 w-[90%] self-center gap-12">
       <Text className="text-2xl font-medium">Recently Logged</Text>
       <View>
         {logs.map(
           ({
+            id,
             url,
             name,
             calories,
             proteinContent,
             fatContent,
             carbContent,
+            scannedAt,
+            servingsConsumed = 1,
           }) => (
             <View
-              key={uuidv4()}
+              key={id}
               className="flex flex-col gap-4 border-b-2 border-gray-200 p-2 rounded-xl"
             >
               <View>
@@ -29,12 +63,18 @@ function ScanLogCard({ logs }) {
                   />
                 )}
                 <Text className="text-2xl font-medium">{name}</Text>
+                <Text className="text-xs text-gray-400 mt-0.5">
+                  {new Date(scannedAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </Text>
               </View>
 
               <View className="flex flex-col gap-8">
                 <View className="flex flex-row gap-2 items-baseline justify-start">
                   <Text className="text-lg font-medium  text-gray-500">
-                    {calories}
+                    {fmt(calories * servingsConsumed)}
                   </Text>
                   <Text className="text-base text-gray-500">kcal</Text>
                 </View>
@@ -67,7 +107,7 @@ function ScanLogCard({ logs }) {
                       Protein
                     </Text>
                     <Text className="text-sm font-semibold">
-                      {proteinContent}
+                      {fmt(proteinContent * servingsConsumed)}
                     </Text>
                   </View>
                   <View
@@ -90,7 +130,7 @@ function ScanLogCard({ logs }) {
                     <Text className="text-[#818181] text-sm font-medium">
                       Carb
                     </Text>
-                    <Text className="text-sm font-semibold">{carbContent}</Text>
+                    <Text className="text-sm font-semibold">{fmt(carbContent * servingsConsumed)}</Text>
                   </View>
                   <View
                     className="flex flex-row gap-1 items-center justify-center bg-[#EDEFF3]  rounded-full"
@@ -111,9 +151,12 @@ function ScanLogCard({ logs }) {
                     <Text className="text-[#818181] text-sm font-medium">
                       Fats
                     </Text>
-                    <Text className="text-sm font-semibold">{fatContent}</Text>
+                    <Text className="text-sm font-semibold">{fmt(fatContent * servingsConsumed)}</Text>
                   </View>
                 </View>
+              </View>
+              <View className="absolute top-4 -right-2">
+              <QuantityControl id={id} quantity={servingsConsumed} />
               </View>
             </View>
           ),

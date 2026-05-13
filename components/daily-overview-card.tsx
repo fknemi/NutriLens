@@ -1,21 +1,24 @@
 import { View, Text } from "react-native";
-import Svg, { Path, Defs, Stop, LinearGradient } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 
-function DailyOverviewCard({ carb = "0g", fat = "0g", protein = "0g" }) {
+function DailyOverviewCard({
+  carb = "0",
+  carbGoal = "77",
+  fat = "0",
+  fatGoal = "65",
+  protein = "0",
+  proteinGoal = "140",
+}) {
   return (
     <View className="bg-white rounded-3xl px-7 py-5 w-[90%] self-center gap-5">
       <Text className="text-2xl font-medium">Daily Overview</Text>
       <View className="flex flex-row gap-4 h-[25vh]">
-        <View className=" flex flex-col flex-1  items-center justify-center bg-[#D8E2FF] gap-2 rounded-3xl py-8">
+
+        {/* ── Carbs ── */}
+        <View className="flex flex-col flex-1 items-center justify-center bg-[#D8E2FF] gap-2 rounded-3xl py-8">
           <View className="flex flex-col gap-12 items-center justify-center">
             <View className="flex rounded-full items-center justify-center bg-white/50 w-16 h-16">
-              <Svg
-                width={32}
-                height={32}
-                viewBox="0 0 12 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
+              <Svg width={32} height={32} viewBox="0 0 12 24" fill="none">
                 <Path
                   d="M10.9862 0.817845C10.9667 0.691872 10.9211 0.570902 10.8523 0.46199C10.7835 0.353077 10.6927 0.258404 10.5854 0.183491C10.478 0.108578 10.3561 0.0549262 10.2269 0.0256637C10.0977 -0.00359877 9.96375 -0.00788551 9.83279 0.0130534C9.70184 0.0339923 9.57654 0.0797379 9.46421 0.147622C9.35188 0.215505 9.25476 0.304168 9.17852 0.408439C9.10228 0.51271 9.04845 0.630501 9.02016 0.754942C8.99187 0.879383 8.98969 1.00798 9.01375 1.13324L9.98625 6.73121H7V0.974943C7 0.7205 6.89464 0.476479 6.70711 0.296561C6.51957 0.116643 6.26522 0.0155656 6 0.0155656C5.73478 0.0155656 5.48043 0.116643 5.29289 0.296561C5.10536 0.476479 5 0.7205 5 0.974943V6.73121H2.01375L2.98625 1.13324C3.01031 1.00798 3.00813 0.879383 2.97984 0.754942C2.95155 0.630501 2.89772 0.51271 2.82148 0.408439C2.74524 0.304168 2.64812 0.215505 2.53579 0.147622C2.42346 0.0797379 2.29816 0.0339923 2.16721 0.0130534C2.03625 -0.00788551 1.90227 -0.00359877 1.77306 0.0256637C1.64385 0.0549262 1.52201 0.108578 1.41464 0.183491C1.30727 0.258404 1.21653 0.353077 1.1477 0.46199C1.07887 0.570902 1.03334 0.691872 1.01375 0.817845L0.0137501 6.57411C0.00477563 6.62604 0.000177343 6.67857 0 6.73121C0.00199809 8.0909 0.504898 9.40615 1.41983 10.4445C2.33477 11.4829 3.60285 12.1777 5 12.4059V23.0406C5 23.2951 5.10536 23.5391 5.29289 23.719C5.48043 23.8989 5.73478 24 6 24C6.26522 24 6.51957 23.8989 6.70711 23.719C6.89464 23.5391 7 23.2951 7 23.0406V12.4059C8.39715 12.1777 9.66523 11.4829 10.5802 10.4445C11.4951 9.40615 11.998 8.0909 12 6.73121C11.9998 6.67857 11.9952 6.62604 11.9862 6.57411L10.9862 0.817845Z"
                   fill="#4F75E8"
@@ -24,27 +27,22 @@ function DailyOverviewCard({ carb = "0g", fat = "0g", protein = "0g" }) {
             </View>
             <Text className="text-3xl font-bold text-center">Carbs</Text>
           </View>
-
           <View className="flex flex-row items-baseline justify-center">
-            <Text className="text-2xl font-medium">40/</Text>
-            <Text className="text-lg relative top-[2px]  font-medium">77g</Text>
+            <Text className="text-2xl font-medium">{carb}/</Text>
+            <Text className="text-lg relative top-[2px] font-medium">{carbGoal}g</Text>
           </View>
         </View>
-        <View className="flex flex-col flex-1  gap-6">
+
+        {/* ── Fat + Protein ── */}
+        <View className="flex flex-col flex-1 gap-6">
+
+          {/* Fat */}
           <View
-            className="flex flex-row flex-1 items-center justify-start w-fit bg-[#C2FFDF] gap-6 rounded-3xl "
-            style={{
-              paddingLeft: 8,
-            }}
+            className="flex flex-row flex-1 items-center justify-start w-fit bg-[#C2FFDF] gap-6 rounded-3xl"
+            style={{ paddingLeft: 8 }}
           >
             <View className="flex rounded-full items-center justify-center bg-white/50 w-12 h-12">
-              <Svg
-                width={13}
-                height={24}
-                viewBox="0 0 13 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
+              <Svg width={13} height={24} viewBox="0 0 13 24" fill="none">
                 <Path
                   d="M9.15652 5.52274C8.70249 5.27225 8.28362 5.21108 8.01569 5.21219C8.01297 5.21219 8.01085 5.21239 8.00813 5.21239C7.98868 5.21088 7.96914 5.20947 7.94929 5.20947H6.07934H4.20939C4.18954 5.20947 4.17009 5.21098 4.15064 5.21239C4.14792 5.21239 4.14581 5.21219 4.14298 5.21219C3.87475 5.21108 3.45599 5.27225 3.00185 5.52274C2.31425 5.89879 1.60619 6.66912 1.0664 8.04735C0.523195 9.43112 0.115107 11.4464 0.000640636 14.4831C-0.0180004 14.9836 0.372454 15.4045 0.873042 15.4232C0.884629 15.4237 0.896116 15.4239 0.907502 15.4239C1.39277 15.4239 1.79482 15.0397 1.81316 14.5508C1.82414 14.247 1.83865 13.9565 1.85578 13.6757C1.53253 13.1634 1.3434 12.498 1.3434 11.6379C1.3434 10.278 1.85537 9.09739 2.78471 8.21179C2.81907 8.17914 2.85998 8.14781 2.90572 8.11758C2.07866 8.91491 1.54493 10.054 1.54493 11.4364C1.54493 12.6232 1.93901 13.6517 2.57351 14.4423C2.41138 14.3226 2.26135 14.1874 2.12622 14.0346L3.35935 22.9916C3.35935 23.5485 3.91718 24.0001 4.60498 24.0001C5.29299 24.0001 5.85091 23.5486 5.85091 22.9916V16.1338C5.92678 16.1378 6.00286 16.14 6.07924 16.14C6.15561 16.14 6.23169 16.1379 6.30756 16.1338V22.9916C6.30756 23.5485 6.86548 24.0001 7.55349 24.0001C8.24129 24.0001 8.79922 23.5486 8.79922 22.9916L10.0322 14.0348C9.89702 14.1875 9.74709 14.3226 9.58486 14.4425C10.2195 13.6518 10.6135 12.6232 10.6135 11.4364C10.6135 10.0541 10.0798 8.91511 9.25295 8.11778C9.2987 8.14791 9.3395 8.17904 9.37376 8.21179C10.3032 9.09759 10.8152 10.278 10.8152 11.6379C10.8152 12.4983 10.6259 13.1639 10.3025 13.6762C10.3197 13.9565 10.3342 14.2474 10.3454 14.5507C10.3638 15.0397 10.7657 15.4238 11.251 15.4238C11.2625 15.4238 11.2739 15.4236 11.2854 15.4231C11.7859 15.4043 12.1766 14.9835 12.1579 14.483C12.0025 10.4362 11.3367 8.19637 10.5032 6.86389C10.086 6.20118 9.61146 5.77132 9.15652 5.52274Z"
                   fill="#50B380"
@@ -55,32 +53,22 @@ function DailyOverviewCard({ carb = "0g", fat = "0g", protein = "0g" }) {
                 />
               </Svg>
             </View>
-
             <View className="flex flex-col gap-2">
-              <Text className="text-2xl font-bold text-center">Fat</Text>
-
-              <View className="flex flex-row items-baseline justify-center">
-                <Text className="text-xl font-medium">40/</Text>
-                <Text className="text-lg relative top-[2px]  font-medium">
-                  77g
-                </Text>
+              <Text className="text-2xl font-bold">Fat</Text>
+              <View className="flex flex-row items-baseline">
+                <Text className="text-xl font-medium">{fat}/</Text>
+                <Text className="text-lg relative top-[2px] font-medium">{fatGoal}g</Text>
               </View>
             </View>
           </View>
+
+          {/* Protein */}
           <View
-            className="flex flex-row flex-1 items-center justify-start w-fit bg-[#FFEED9] gap-6 rounded-3xl "
-            style={{
-              paddingLeft: 8,
-            }}
+            className="flex flex-row flex-1 items-center justify-start w-fit bg-[#FFEED9] gap-6 rounded-3xl"
+            style={{ paddingLeft: 8 }}
           >
             <View className="flex rounded-full items-center justify-center bg-white/50 w-12 h-12">
-              <Svg
-                width={21}
-                height={24}
-                viewBox="0 0 21 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
+              <Svg width={21} height={24} viewBox="0 0 21 24" fill="none">
                 <Path
                   fillRule="evenodd"
                   clipRule="evenodd"
@@ -89,18 +77,15 @@ function DailyOverviewCard({ carb = "0g", fat = "0g", protein = "0g" }) {
                 />
               </Svg>
             </View>
-
             <View className="flex flex-col gap-2">
-              <Text className="text-2xl font-bold text-center">Protein</Text>
-
-              <View className="flex flex-row items-baseline justify-center">
-                <Text className="text-xl font-medium">40/</Text>
-                <Text className="text-md relative top-[2px]  font-medium">
-                  77g
-                </Text>
+              <Text className="text-2xl font-bold">Protein</Text>
+              <View className="flex flex-row items-baseline">
+                <Text className="text-xl font-medium">{protein}/</Text>
+                <Text className="text-lg relative top-[2px] font-medium">{proteinGoal}g</Text>
               </View>
             </View>
           </View>
+
         </View>
       </View>
     </View>

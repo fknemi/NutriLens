@@ -154,13 +154,6 @@ const TARGET_CLASSES = [
   "pizza",
   "donut",
   "cake",
-  "bottle",
-  "wine glass",
-  "cup",
-  "fork",
-  "knife",
-  "spoon",
-  "bowl",
 ];
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -222,7 +215,10 @@ function depthToHex(t: number): string {
 
 // ─── Model resolution (cached to disk) ───────────────────────────────────────
 
-async function resolveModelToLocalFile(moduleId: number, filename: string): Promise<string> {
+async function resolveModelToLocalFile(
+  moduleId: number,
+  filename: string,
+): Promise<string> {
   const dest = new File(Paths.cache, filename);
   if (dest.exists) return dest.uri;
 

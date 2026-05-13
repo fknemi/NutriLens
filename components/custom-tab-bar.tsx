@@ -33,7 +33,11 @@ export function CustomTabBar({
     showSearchIcon,
     hideSearchIcon,
     hideNotificationIcon,
-    showNotificationIcon
+    showNotificationIcon,
+    hideProfileIcon,
+    showProfileIcon,
+    hideBackIcon,
+    showBackIcon,
   } = useHeaderStore();
   const { hideSearch, showSearch, toggleSearch } = useSearchStore();
   const activeRouteName = state.routes[state.index].name;
@@ -47,10 +51,17 @@ export function CustomTabBar({
     } else if (activeRouteName === "analytics") {
       hideSearch();
       hideSearchIcon();
+    } else if (activeRouteName === "analytics") {
+      hideSearchIcon();
+      hideProfileIcon();
+      showBackIcon();
+      hideNotificationIcon();
     } else {
       showSearch();
       showHeader();
       showNotificationIcon();
+      hideSearchIcon();
+      showProfileIcon();
     }
     setTab(activeRouteName as AppTab);
   }, [activeRouteName]);
@@ -65,6 +76,7 @@ export function CustomTabBar({
         const { options } = descriptors[route.key];
         const label = options.title ?? route.name;
         const isFocused = state.index === index;
+        if (route.name === "medidation") return null;
         return (
           <TouchableOpacity
             key={route.key}
