@@ -2,8 +2,12 @@ import { Text, View, ScrollView } from "react-native";
 import WeekProgressCard from "@/components/week-progress-card";
 import DailyOverviewCard from "@/components/daily-overview-card";
 import ScanLogCard from "@/components/scan-log-card";
-
+import {
+  useScannedFoodStore,
+  getNutrientValue,
+} from "@/stores/useScannedFoodStore";
 export default function DietScreen() {
+  const foods = useScannedFoodStore((s) => s.foods) ?? [];
   return (
     <ScrollView className="flex-1">
       <View className="items-center justify-start gap-4 mt-12">
@@ -21,7 +25,19 @@ export default function DietScreen() {
           protein="140g"
           title="Daily Overview"
         />
-        <ScanLogCard logs={[{url: "", name: "Grilled Chicken with Salad", calories: 400, proteinContent: "70%", fatContent: "50%", carbContent: "50%"}]} />
+        <ScanLogCard
+          logs={foods.map((food) => ({
+            url: food.imageUri ?? "",
+            name: food.customName ?? food.labelText,
+            calories: getNutrientValue(food, "Energy") ?? 0,
+            proteinContent:
+              getNutrientValue(food, "Protein")?.toString() ?? "0",
+            fatContent:
+              getNutrientValue(food, "Total lipid")?.toString() ?? "0",
+            carbContent:
+              getNutrientValue(food, "Carbohydrate")?.toString() ?? "0",
+          }))}
+        />
       </View>
     </ScrollView>
   );

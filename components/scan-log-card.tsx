@@ -1,9 +1,11 @@
 import { View, Text, Image } from "react-native";
 import Svg, { Path, Defs, Stop, LinearGradient } from "react-native-svg";
+import { v4 as uuidv4 } from "@/uuid";
 function ScanLogCard({ logs }) {
   // destructure props
+  console.log(logs);
   return (
-          <View className="bg-white rounded-3xl px-7 py-5 w-[90%] self-center gap-12">
+    <View className="bg-white rounded-3xl px-7 py-5 w-[90%] self-center gap-12">
       <Text className="text-2xl font-medium">Recently Logged</Text>
       <View>
         {logs.map(
@@ -15,7 +17,10 @@ function ScanLogCard({ logs }) {
             fatContent,
             carbContent,
           }) => (
-            <View key={name} className="flex flex-col gap-4 border-b-2 border-gray-200 p-2 rounded-xl">
+            <View
+              key={uuidv4()}
+              className="flex flex-col gap-4 border-b-2 border-gray-200 p-2 rounded-xl"
+            >
               <View>
                 {url && (
                   <Image
@@ -28,7 +33,9 @@ function ScanLogCard({ logs }) {
 
               <View className="flex flex-col gap-8">
                 <View className="flex flex-row gap-2 items-baseline justify-start">
-                  <Text className="text-lg font-medium  text-gray-500">{calories}</Text>
+                  <Text className="text-lg font-medium  text-gray-500">
+                    {calories}
+                  </Text>
                   <Text className="text-base text-gray-500">kcal</Text>
                 </View>
 
@@ -59,7 +66,9 @@ function ScanLogCard({ logs }) {
                     <Text className="text-[#818181] text-sm font-medium">
                       Protein
                     </Text>
-                    <Text className="text-sm font-semibold">40%</Text>
+                    <Text className="text-sm font-semibold">
+                      {proteinContent}
+                    </Text>
                   </View>
                   <View
                     className="flex flex-row gap-1 items-center justify-center bg-[#EDEFF3]  rounded-full"
@@ -81,7 +90,7 @@ function ScanLogCard({ logs }) {
                     <Text className="text-[#818181] text-sm font-medium">
                       Carb
                     </Text>
-                    <Text className="text-sm font-semibold">40%</Text>
+                    <Text className="text-sm font-semibold">{carbContent}</Text>
                   </View>
                   <View
                     className="flex flex-row gap-1 items-center justify-center bg-[#EDEFF3]  rounded-full"
@@ -102,7 +111,7 @@ function ScanLogCard({ logs }) {
                     <Text className="text-[#818181] text-sm font-medium">
                       Fats
                     </Text>
-                    <Text className="text-sm font-semibold">40%</Text>
+                    <Text className="text-sm font-semibold">{fatContent}</Text>
                   </View>
                 </View>
               </View>

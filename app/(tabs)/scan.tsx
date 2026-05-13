@@ -1,4 +1,6 @@
-import { useState, useRef } from "react";
+import { type NutritionSummary } from "@/hooks/useFoodNutrition";
+import { type USDAFoodDetails } from "@/stores/useScannedFoodStore";
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -27,6 +29,7 @@ import FoodDetectionCamera, {
 } from "@/components/food-detection-camera";
 import { useDetectionStore } from "@/stores/useDetectionStore";
 import { useFoodNutrition } from "@/hooks/use-food-nutrition";
+import { useScannedFoodStore } from "@/stores/useScannedFoodStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MODES = [
@@ -96,13 +99,25 @@ const FOOD_EMOJIS: Record<string, string> = {
   bowl: "🥣",
 };
 
+interface NutritionSummary {
+  label: string;
+  description: string;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  fiber?: number;
+  vitaminC?: number;
+  sugar?: number;
+}
+
 function FoodCard({
   label,
   onSave,
   onExpire,
 }: {
   label: string;
-  onSave: (label: string) => void;
+  onSave: (label: string, nutrition: NutritionSummary | null) => void;
   onExpire: (label: string) => void; // ← new
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -195,10 +210,14 @@ function FoodCard({
             </Text>
           </Pressable>
           <Pressable
-            className="bg-white/15 rounded-full px-2.5 py-1 ml-1"
-            onPress={() => onSave(label)}
+            className="bg-white rounded-full px-3 py-1.5"
+            onPress={() => onSave(label, nutrition)}
+            disabled={loading || !nutrition}
+            style={{ opacity: loading || !nutrition ? 0.4 : 1 }}
           >
-            <Text className="text-white text-[11px] font-bold">Save</Text>
+            <Text className="text-black text-[11px] font-bold">
+              {loading ? "Loading…" : "Save"}
+            </Text>
           </Pressable>
         </RNAnimated.View>
       )}
@@ -233,12 +252,6 @@ function FoodCard({
             </Text>
             <Text className="text-white/40 text-[10px] mt-0.5">per 100 g</Text>
           </View>
-          <Pressable
-            className="bg-white rounded-full px-3 py-1.5"
-            onPress={() => onSave(label)}
-          >
-            <Text className="text-black text-[11px] font-bold">Save</Text>
-          </Pressable>
         </View>
 
         {/* Divider */}
@@ -404,6 +417,31 @@ function PermissionScreen({ onRequest }: { onRequest: () => void }) {
   );
 }
 
+function toUSDADetails(nutrition: NutritionSummary): USDAFoodDetails {
+  const nutrient = (id: number, name: string, unit: string, value?: number) =>
+    value !== undefined
+      ? [{ nutrientId: id, nutrientName: name, unitName: unit, value }]
+      : [];
+
+  return {
+    fdcId: 0,
+    description: nutrition.description,
+    nutrients: [
+      ...nutrient(1008, "Energy", "kcal", nutrition.calories),
+      ...nutrient(1003, "Protein", "g", nutrition.protein),
+      ...nutrient(1005, "Carbohydrate, by difference", "g", nutrition.carbs),
+      ...nutrient(1004, "Total lipid (fat)", "g", nutrition.fat),
+      ...nutrient(1079, "Fiber, total dietary", "g", nutrition.fiber),
+      ...nutrient(2000, "Total Sugars", "g", nutrition.sugar),
+      ...nutrient(
+        1162,
+        "Vitamin C, total ascorbic acid",
+        "mg",
+        nutrition.vitaminC,
+      ),
+    ],
+  };
+}
 // ─── ScanScreen ───────────────────────────────────────────────────────────────
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
@@ -415,7 +453,7 @@ export default function ScanScreen() {
   const addDetections = useDetectionStore((s) => s.addDetections);
   const removeFood = useDetectionStore((s) => s.removeFood);
   const activeLabels = Array.from(foods.keys());
-
+  const { saveFood } = useScannedFoodStore();
   const handleSelect = (index: number) => {
     setActiveMode(index);
     activeIndex.value = withSpring(index, SPRING_CONFIG);
@@ -426,10 +464,12 @@ export default function ScanScreen() {
     if (!granted) Linking.openSettings();
   };
 
-  const handleSave = (label: string) => {
-    console.log("[Save]", label);
+  const handleSave = (label: string, nutrition: NutritionSummary | null) => {
+    saveFood(label, nutrition ? toUSDADetails(nutrition) : undefined, {
+      customName: label,
+      servingsConsumed: 1,
+    });
   };
-
   const isAiMode = activeMode === 0;
 
   return (

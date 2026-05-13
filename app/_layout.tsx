@@ -14,6 +14,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { StyleSheet, View } from "react-native";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { getCountry } from "@/services/geo";
+import { File, Directory, Paths } from "expo-file-system";
 import { downloadCountryDatabase } from "@/services/open-food-facts";
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -63,6 +64,55 @@ export default function RootLayout() {
         console.warn("USDA DB init failed:", e);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    function logAppStorage() {
+      try {
+        console.log("\n=== 🔍 CHECKING APP STORAGE ===");
+
+        // 1. Check the root Document Directory
+        const docDir = Paths.document;
+        console.log("📂 Main Document Path:", docDir.uri);
+
+        if (docDir.exists) {
+          // .list() returns an array of File and Directory instances
+          const docItems = docDir.list();
+          console.log(
+            "📄 Files in Main Dir:",
+            docItems.map((item) => item.name),
+          );
+        }
+
+        // 2. Check the nested SQLite Directory
+        // The constructor accepts a base directory and path segments
+        const sqliteDir = new Directory(Paths.document, "SQLite");
+
+        if (sqliteDir.exists) {
+          const sqliteItems = sqliteDir.list();
+          console.log("\n📂 SQLite Directory Path:", sqliteDir.uri);
+          console.log("📄 Contents of SQLite Dir:");
+
+          // Loop through and log exact sizes to spot the corrupted stubs
+          for (const item of sqliteItems) {
+            if (item instanceof File) {
+              // If this size is ~100 bytes, you know it's a corrupted stub!
+              console.log(`   ↳ 📄 ${item.name}: ${item.size} bytes`);
+            } else if (item instanceof Directory) {
+              console.log(`   ↳ 📁 ${item.name} (Directory)`);
+            }
+          }
+        } else {
+          console.log("\n⚠️ SQLite Directory does not exist yet.");
+        }
+
+        console.log("=================================\n");
+      } catch (error) {
+        console.error("❌ Error reading directories:", error);
+      }
+    }
+
+    logAppStorage();
   }, []);
 
   if (!loaded) return null;
