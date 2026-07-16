@@ -7,7 +7,6 @@ import { useEffect } from "react";
 import { Text, Center } from "@/components/ui/text";
 import { useSearchStore } from "@/stores/useSearchStore";
 import { useHeaderStore } from "@/stores/useHeaderStore";
-import { useTabStore } from "@/stores/useTabStore";
 import Svg, {
   Path,
   Circle,
@@ -20,13 +19,13 @@ import Svg, {
   Defs,
   Stop,
 } from "react-native-svg";
+import { useTabStore } from "@/stores/useTabStore";
 export function CustomTabBar({
   state,
   descriptors,
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { isVisible, setTab } = useTabStore();
   const {
     hideHeader,
     showHeader,
@@ -40,19 +39,24 @@ export function CustomTabBar({
     showBackIcon,
   } = useHeaderStore();
   const { hideSearch, showSearch, toggleSearch } = useSearchStore();
+  const { isVisible, setTab, showTabBar, hideTabBar } = useTabStore();
   const activeRouteName = state.routes[state.index].name;
   useEffect(() => {
     if (activeRouteName === "scan") {
       hideHeader();
       hideSearch();
+     hideTabBar(); 
 
     } else if (activeRouteName === "diet") {
       hideSearch();
       showSearchIcon();
-      
+ showTabBar(); 
+     
     } else if (activeRouteName === "analytics") {
       hideSearch();
       hideSearchIcon();
+      showTabBar(); 
+
     } else if (activeRouteName === "chat") {
       hideSearch();
       hideProfileIcon();
@@ -65,12 +69,15 @@ export function CustomTabBar({
       showBackIcon();
       hideNotificationIcon();
       hideHeader();
+      hideTabBar()
     } else {
       showSearch();
       showHeader();
       showNotificationIcon();
       hideSearchIcon();
       showProfileIcon();
+        showTabBar(); 
+
     }
     setTab(activeRouteName as AppTab);
   }, [activeRouteName]);
@@ -89,6 +96,7 @@ export function CustomTabBar({
         if (route.name === "meals") return null;
         if (route.name === "activity") return null;
         if (route.name === "chat") return null;
+        if (route.name === "medidation") return null;
         return (
           <TouchableOpacity
             key={route.key}

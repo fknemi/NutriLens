@@ -6,11 +6,10 @@ import { Recipe } from "@/services/recipe-api";
 
 type SavedRecipesState = {
   // Keyed by id for O(1) lookups/toggles instead of scanning an array
-  savedRecipes: Record<number, Recipe>;
-
-  isSaved: (id: number) => boolean;
+  savedRecipes: Record<string, Recipe>;
+  isSaved: (id: string) => boolean; // Change to string
   saveRecipe: (recipe: Recipe) => void;
-  unsaveRecipe: (id: number) => void;
+  unsaveRecipe: (id: string) => void; // Change to string
   toggleSaved: (recipe: Recipe) => void;
   clearSaved: () => void;
 
@@ -57,6 +56,6 @@ export const useSavedRecipesStore = create<SavedRecipesState>()(
       storage: createJSONStorage(() => AsyncStorage),
       // Only persist the data, not the action functions
       partialize: (state) => ({ savedRecipes: state.savedRecipes }),
-    }
-  )
+    },
+  ),
 );

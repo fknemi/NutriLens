@@ -8,7 +8,14 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import Svg, { Path } from "react-native-svg";
-import { getRecipe, Recipe, RecipeApiError } from "@/services/recipe-api";
+import {
+  getRecipe,
+  Recipe,
+  RecipeApiError,
+  parseIsoDurationToMinutes,
+} from "@/services/recipe-api";
+import { useAllergensStore } from "@/stores/useAllergensStore";
+import { useDislikedIngredientsStore } from "@/stores/useDislikedIngredientsStore";
 
 interface DetailState {
   recipe: Recipe | null;
@@ -21,22 +28,21 @@ function initialDetailState(): DetailState {
 }
 
 export default function RecipeDetailScreen() {
-  // expo-router's [id].tsx convention: the segment name in the filename
-  // ("id") is the key this comes back under. Route params always arrive
-  // as string | string[] | undefined, never a number, regardless of what
-  // looks like a number in the URL — so this still needs parsing below.
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string | string[] }>();
   const router = useRouter();
+
+  const allergens = useAllergensStore((s) => s.allergens);
+  const dislikedIngredients = useDislikedIngredientsStore((s) => s.ingredients);
 
   const [state, setState] = useState<DetailState>(initialDetailState());
 
-  const load = useCallback(async (recipeId: number) => {
+  const load = useCallback(async (recipeId: string) => {
     setState({ recipe: null, loading: true, error: null });
     try {
       const recipe = await getRecipe(recipeId);
       setState({ recipe, loading: false, error: null });
     } catch (err: any) {
-      console.error("🚨 RECIPE DETAIL FETCH CRASHED:", err);
+      console.error("RECIPE DETAIL FETCH CRASHED:", err);
       const message =
         err?.name === "RecipeApiError"
           ? (err as RecipeApiError).message
@@ -46,12 +52,9 @@ export default function RecipeDetailScreen() {
   }, []);
 
   useEffect(() => {
-    const numericId = Number(id);
+    const recipeId = Array.isArray(id) ? id[0] : id;
 
-    // Number("") is 0, Number(undefined) is NaN, Number("abc") is NaN —
-    // all three are invalid recipe ids, so this one check covers a missing
-    // param, a non-numeric param, and an empty string param at once.
-    if (!id || Number.isNaN(numericId)) {
+    if (!recipeId) {
       setState({
         recipe: null,
         loading: false,
@@ -60,19 +63,39 @@ export default function RecipeDetailScreen() {
       return;
     }
 
-    load(numericId);
+    load(recipeId);
   }, [id, load]);
+
+  // Calculate warnings if the recipe is loaded
+  let flaggedAllergens: string[] = [];
+  let flaggedDislikes: string[] = [];
+
+  if (state.recipe) {
+    const allItems = state.recipe.ingredients.flatMap((g) => g.items);
+
+    const matchTerms = (terms: string[]) =>
+      terms.filter((term) => {
+        const safeTerm = term.trim().toLowerCase();
+        if (!safeTerm) return false;
+        // Use word boundaries so "egg" doesn't match "eggplant"
+        const regex = new RegExp(
+          `\\b${safeTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+          "i"
+        );
+        return allItems.some((ing) => regex.test(`${ing.name} ${ing.category}`));
+      });
+
+    flaggedAllergens = matchTerms(allergens);
+    flaggedDislikes = matchTerms(dislikedIngredients);
+  }
+
+  const hasWarnings = flaggedAllergens.length > 0 || flaggedDislikes.length > 0;
 
   return (
     <>
-      {/* Hides the default expo-router header so the custom back button
-          below is the only one shown — remove this Stack.Screen call if
-          your _layout.tsx already configures headers globally and this
-          would end up fighting that configuration. */}
       <Stack.Screen options={{ headerShown: false }} />
 
       <View className="flex-1 bg-white">
-        {/* Back button row */}
         <View className="flex-row items-center pt-14 pb-2 px-5">
           <Pressable
             onPress={() => router.back()}
@@ -103,8 +126,8 @@ export default function RecipeDetailScreen() {
             <Text className="text-red-500 text-center">{state.error}</Text>
             <Pressable
               onPress={() => {
-                const numericId = Number(id);
-                if (!Number.isNaN(numericId)) load(numericId);
+                const recipeId = Array.isArray(id) ? id[0] : id;
+                if (recipeId) load(recipeId);
               }}
               className="px-4 py-2 rounded-full"
               style={{ backgroundColor: "#111111" }}
@@ -119,6 +142,21 @@ export default function RecipeDetailScreen() {
             className="flex-1"
             contentContainerStyle={{ padding: 20, paddingBottom: 48, gap: 20 }}
           >
+            {hasWarnings && (
+              <View className="bg-red-50 border border-red-200 rounded-xl p-4 mb-2">
+                <Text className="text-red-800 font-bold text-base mb-2">
+                  Dietary Warning
+                </Text>
+                <Text className="text-red-700 text-sm leading-relaxed">
+                  This recipe contains ingredients on your restriction lists:
+                  {flaggedAllergens.length > 0 &&
+                    `\n• Allergens: ${flaggedAllergens.join(", ")}`}
+                  {flaggedDislikes.length > 0 &&
+                    `\n• Dislikes: ${flaggedDislikes.join(", ")}`}
+                </Text>
+              </View>
+            )}
+
             <Text className="text-2xl font-bold text-[#1a1a1a]">
               {state.recipe.name}
             </Text>
@@ -127,40 +165,61 @@ export default function RecipeDetailScreen() {
               {state.recipe.description}
             </Text>
 
-            {/* Quick stats row, same visual language as RecipeCard's
-                duration/calories/fats pills */}
             <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-              <StatPill label="min" value={String(state.recipe.cook_time)} />
+              <StatPill
+                label="min"
+                value={String(
+                  parseIsoDurationToMinutes(state.recipe.meta.total_time),
+                )}
+              />
               <StatPill
                 label="kcal"
-                value={String(state.recipe.calories_per_serving)}
+                value={String(state.recipe.nutrition.per_serving.calories ?? 0)}
               />
-              <StatPill label="g protein" value={String(state.recipe.protein)} />
+              <StatPill
+                label="g protein"
+                value={String(
+                  state.recipe.nutrition.per_serving.protein_g ?? 0,
+                )}
+              />
               <StatPill
                 label="servings"
-                value={String(state.recipe.servings)}
+                value={String(state.recipe.meta.yield_count ?? "-")}
               />
             </View>
 
             <View className="gap-2">
-              <Text className="text-lg font-semibold text-[#1a1a1a]">
+              <Text className="text-lg font-semibold text-[#1a1a1a] mt-4">
                 Ingredients
               </Text>
-              {state.recipe.ingredients.map((ing) => (
-                <Text key={ing.id} className="text-[#333] text-sm">
-                  • {ing.quantity} {ing.unit ?? ""} {ing.name}
-                  {ing.optional ? " (optional)" : ""}
-                </Text>
+              {state.recipe.ingredients.map((group, groupIndex) => (
+                <View key={groupIndex} className="mb-3 gap-1">
+                  <Text className="text-sm font-bold text-[#1a1a1a]">
+                    {group.group_name}
+                  </Text>
+                  {/* FIXED: Using both groupIndex and ingredient index to guarantee unique keys */}
+                  {group.items.map((ing, index) => (
+                    <Text key={`${groupIndex}-${index}`} className="text-[#333] text-sm">
+                      • {ing.quantity ? `${ing.quantity} ` : ""}
+                      {ing.unit ? `${ing.unit} ` : ""}
+                      {ing.name}
+                      {ing.optional ? " (optional)" : ""}
+                    </Text>
+                  ))}
+                </View>
               ))}
             </View>
 
             <View className="gap-2">
-              <Text className="text-lg font-semibold text-[#1a1a1a]">
+              <Text className="text-lg font-semibold text-[#1a1a1a] mt-4">
                 Instructions
               </Text>
-              {state.recipe.instructions.map((step, i) => (
-                <Text key={i} className="text-[#333] text-sm leading-relaxed">
-                  {i + 1}. {step}
+              {state.recipe.instructions?.map((step) => (
+                <Text
+                  key={step.step_number}
+                  className="text-[#333] text-sm leading-relaxed mb-2"
+                >
+                  {step.step_number}. {step.text}
                 </Text>
               ))}
             </View>
@@ -175,7 +234,11 @@ function StatPill({ label, value }: { label: string; value: string }) {
   return (
     <View
       className="rounded-lg"
-      style={{ backgroundColor: "#EDEFF3", paddingHorizontal: 10, paddingVertical: 6 }}
+      style={{
+        backgroundColor: "#EDEFF3",
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+      }}
     >
       <Text className="text-[#111] text-xs font-medium">
         {value} <Text className="text-[#818181]">{label}</Text>

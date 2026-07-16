@@ -874,12 +874,12 @@ export default function FoodDetectionCamera({
     <View style={[styles.container, style]} onLayout={onLayout}>
       {!yoloPath && !midasPath && !error && (
         <View style={styles.statusOverlay}>
-          <Text style={styles.statusText}>⏳ Loading models…</Text>
+          <Text style={styles.statusText}>Loading models…</Text>
         </View>
       )}
       {error && (
         <View style={styles.statusOverlay}>
-          <Text style={styles.statusText}>❌ {error}</Text>
+          <Text style={styles.statusText}>{error}</Text>
         </View>
       )}
       {yoloPath && midasPath && viewSize.width > 1 && (

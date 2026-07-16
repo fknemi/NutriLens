@@ -14,7 +14,7 @@ function MealCard({
       <View className="flex flex-row justify-between items-center">
         <View className="flex flex-col gap-2">
           <Text className="text-xl font-semibold text-[#111]">{name}</Text>
-          <Text className="text-base text-gray-500">{calories} kcal</Text>
+          <Text className="text-base text-gray-500">{Math.round(calories)} kcal</Text>
         </View>
         <Pressable onPress={onAddPress} hitSlop={8}>
           <Svg

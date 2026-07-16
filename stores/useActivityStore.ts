@@ -6,6 +6,7 @@ export interface ActivityLog {
   type: string;
   duration: number; // Stored in seconds
   caloriesBurned: number;
+  date: string; // <-- Add this
 }
 
 interface ActivityState {
@@ -19,7 +20,11 @@ export const useActivityStore = create<ActivityState>((set) => ({
     set((state) => ({
       activities: [
         ...state.activities,
-        { ...activity, id: Date.now().toString() }, // Generate a simple local ID
+        {
+          ...activity,
+          id: Date.now().toString(),
+          date: new Date().toISOString(),
+        },
       ],
     })),
 }));

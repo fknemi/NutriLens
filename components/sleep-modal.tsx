@@ -71,7 +71,7 @@ export default function SleepModal({ visible, onClose }: Props) {
                   sleeping ? "text-[#780B9F]" : "text-white"
                 }`}
               >
-                {sleeping ? "☀️  Wake up" : "🌙  Go to sleep"}
+                {sleeping ? "Wake up" : "Go to sleep"}
               </Text>
               {sleeping && sleepingFor && (
                 <Text className="text-[#780B9F] text-sm mt-1 opacity-70">

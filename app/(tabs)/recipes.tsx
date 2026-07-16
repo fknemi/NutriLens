@@ -20,6 +20,8 @@ import {
   listVeganRecipes,
   listNonVegRecipes,
   searchAllRecipes,
+  parseIsoDurationToMinutes,
+  hasMorePages,
   Recipe,
   RecipeApiError,
   CountryCode,
@@ -29,7 +31,13 @@ import { useRouter } from "expo-router";
 const TABS = ["veg", "non-veg", "saved"] as const;
 type TabKey = (typeof TABS)[number];
 
-const PER_PAGE = 40;
+// PER_PAGE now directly governs detail-fetch credit spend: every card on
+// every page resolves through a 1-credit /recipes/{id} call (see
+// resolveWithDetailAndFilter in recipe-api.ts), so this is no longer just
+// a display density knob. Set to 10 per the migration decision, given the
+// Free-plan ceiling of 25 unique recipes/month — at this value a single
+// page load is already 40% of that budget.
+const PER_PAGE = 10;
 const ACTIVE_COUNTRY: CountryCode | undefined = "IN";
 const MAX_AUTO_ADVANCE_PAGES = 10;
 
@@ -127,28 +135,6 @@ export default function RecipesScreen() {
     setTabState((prev) => ({ ...prev, [tab]: { ...prev[tab], ...patch } }));
   }
 
-  const filterLocally = useCallback(
-    (recipes: Recipe[]) => {
-      return recipes.filter((recipe) => {
-        const ingredientsText =
-          recipe.ingredients?.map((i) => i.name.toLowerCase()).join(" ") || "";
-
-        const safeAllergens = allergens || [];
-        const safeDislikes = dislikedIngredients || [];
-
-        const hasAllergen = safeAllergens.some((a) =>
-          ingredientsText.includes(a.toLowerCase()),
-        );
-        const hasDislike = safeDislikes.some((d) =>
-          ingredientsText.includes(d.toLowerCase()),
-        );
-
-        return !hasAllergen && !hasDislike;
-      });
-    },
-    [allergens, dislikedIngredients],
-  );
-
   const loadVegPage = useCallback(
     async (
       startPage: number,
@@ -167,7 +153,11 @@ export default function RecipesScreen() {
       try {
         let page = startPage;
         let newItems: Recipe[] = [];
-        let lastPage = page;
+        // Tracks "does the API have more pages" directly as a boolean,
+        // derived via hasMorePages(res.meta) each iteration — this API has
+        // no meta.last_page field, so there's no page number to compare
+        // against anymore. See hasMorePages() in recipe-api.ts.
+        let apiHasMorePages = true;
         let consecutiveEmptyPages = 0;
 
         const cuisineParam =
@@ -179,19 +169,20 @@ export default function RecipesScreen() {
             per_page: PER_PAGE,
             country: ACTIVE_COUNTRY,
             cuisine: cuisineParam,
+            allergens,
+            dislikedIngredients,
           };
 
           const res = await listVeganRecipes(apiPayload);
-          lastPage = res.meta.last_page;
+          apiHasMorePages = hasMorePages(res.meta);
 
-          const validRecipes = filterLocally(res.data);
+          const validRecipes = res.data;
           newItems = [...newItems, ...validRecipes];
 
           console.log(
-            `📄 API RETURNED: Page ${page} out of ${lastPage}. Valid locally: ${validRecipes.length}`,
+            `API RETURNED: Page ${page} (total=${res.meta.total}, per_page=${res.meta.per_page}). Valid (post server+detail filter): ${validRecipes.length}. More pages: ${apiHasMorePages}`,
           );
 
-          const apiHasMorePages = page < res.meta.last_page;
           const projectedTotal = currentRecipeCount + newItems.length;
 
           if (!apiHasMorePages || projectedTotal >= targetLocalCount) break;
@@ -214,7 +205,7 @@ export default function RecipesScreen() {
               ...prev.veg,
               recipes: merged,
               page,
-              hasMore: page < lastPage,
+              hasMore: apiHasMorePages,
               loading: false,
               loadingMore: false,
               error: null,
@@ -222,7 +213,7 @@ export default function RecipesScreen() {
           };
         });
       } catch (err: any) {
-        console.error("🚨 VEG FETCH CRASHED:", err);
+        console.error("VEG FETCH CRASHED:", err);
         const message =
           err?.name === "RecipeApiError"
             ? err.message
@@ -232,7 +223,7 @@ export default function RecipesScreen() {
         fetchInFlight.current.veg = false;
       }
     },
-    [filterLocally, localCuisine],
+    [localCuisine, allergens, dislikedIngredients],
   );
 
   const loadNonVegPage = useCallback(
@@ -253,7 +244,7 @@ export default function RecipesScreen() {
       try {
         let page = startPage;
         let newItems: Recipe[] = [];
-        let lastPage = page;
+        let apiHasMorePages = true;
         let consecutiveEmptyPages = 0;
 
         const cuisineParam =
@@ -265,19 +256,20 @@ export default function RecipesScreen() {
             per_page: PER_PAGE,
             country: ACTIVE_COUNTRY,
             cuisine: cuisineParam,
+            allergens,
+            dislikedIngredients,
           };
 
           const res = await listNonVegRecipes(apiPayload);
-          lastPage = res.meta.last_page;
+          apiHasMorePages = hasMorePages(res.meta);
 
-          const validRecipes = filterLocally(res.data);
+          const validRecipes = res.data;
           newItems = [...newItems, ...validRecipes];
 
           console.log(
-            `📄 API RETURNED: Page ${page} out of ${lastPage}. Valid locally: ${validRecipes.length}`,
+            `API RETURNED: Page ${page} (total=${res.meta.total}, per_page=${res.meta.per_page}). Valid (post server+detail filter): ${validRecipes.length}. More pages: ${apiHasMorePages}`,
           );
 
-          const apiHasMorePages = page < res.meta.last_page;
           const projectedTotal = currentRecipeCount + newItems.length;
 
           if (!apiHasMorePages || projectedTotal >= targetLocalCount) break;
@@ -300,7 +292,7 @@ export default function RecipesScreen() {
               ...prev["non-veg"],
               recipes: merged,
               page,
-              hasMore: page < lastPage,
+              hasMore: apiHasMorePages,
               loading: false,
               loadingMore: false,
               error: null,
@@ -308,7 +300,7 @@ export default function RecipesScreen() {
           };
         });
       } catch (err: any) {
-        console.error("🚨 NON-VEG FETCH CRASHED:", err);
+        console.error("NON-VEG FETCH CRASHED:", err);
         const message =
           err?.name === "RecipeApiError"
             ? err.message
@@ -322,7 +314,7 @@ export default function RecipesScreen() {
         fetchInFlight.current["non-veg"] = false;
       }
     },
-    [filterLocally, localCuisine],
+    [localCuisine, allergens, dislikedIngredients],
   );
 
   const runSearch = useCallback(
@@ -340,9 +332,11 @@ export default function RecipesScreen() {
           per_page: PER_PAGE,
           country: ACTIVE_COUNTRY,
           cuisine: cuisineParam,
+          allergens,
+          dislikedIngredients,
         });
 
-        const validRecipes = filterLocally(res.data);
+        const validRecipes = res.data;
 
         setSearchState({
           recipes: validRecipes,
@@ -354,7 +348,7 @@ export default function RecipesScreen() {
           error: null,
         });
       } catch (err: any) {
-        console.error("🚨 SEARCH FETCH CRASHED:", err);
+        console.error("SEARCH FETCH CRASHED:", err);
         const message =
           err?.name === "RecipeApiError"
             ? err.message
@@ -369,7 +363,7 @@ export default function RecipesScreen() {
         searchFetchInFlight.current = false;
       }
     },
-    [filterLocally, localCuisine],
+    [localCuisine, allergens, dislikedIngredients],
   );
 
   useEffect(() => {
@@ -569,9 +563,11 @@ export default function RecipesScreen() {
                   <View style={{ flex: 1 }}>
                     <RecipeCard
                       title={left.name}
-                      duration={String(left.cook_time)}
-                      calories={left.calories_per_serving}
-                      fats={left.protein}
+                      duration={String(
+                        parseIsoDurationToMinutes(left.meta.total_time),
+                      )}
+                      calories={left.nutrition_summary?.calories ?? left.nutrition?.per_serving?.calories ?? 0}
+                      fats={left.nutrition_summary?.protein_g ?? left.nutrition?.per_serving?.protein_g ?? 0}
                       recipe={left}
                       onPress={(id) => router.push(`/recipe/${left.id}`)}
                     />
@@ -580,9 +576,11 @@ export default function RecipesScreen() {
                     <View style={{ flex: 1 }}>
                       <RecipeCard
                         title={right.name}
-                        duration={String(right.cook_time)}
-                        calories={right.calories_per_serving}
-                        fats={right.protein}
+                        duration={String(
+                          parseIsoDurationToMinutes(right.meta.total_time),
+                        )}
+                        calories={right.nutrition_summary?.calories ?? right.nutrition?.per_serving?.calories ?? 0}
+                        fats={right.nutrition_summary?.protein_g ?? right.nutrition?.per_serving?.protein_g ?? 0}
                         recipe={right}
                         onPress={(id) => router.push(`/recipe/${right.id}`)}
                       />

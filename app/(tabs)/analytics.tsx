@@ -1,18 +1,17 @@
 import { View, ScrollView, Text, Dimensions } from "react-native";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useSharedValue, withTiming } from "react-native-reanimated";
 import { Selectors } from "@/components/selectors";
-import CaloriesCard from "@/components/calories-card";
-import DailyThings from "@/components/daily-things";
 import NutritionChart from "@/components/nutrition-chart";
 import BodyFatChart from "@/components/body-fat-chart";
 import MacroBreakdownChart from "@/components/macro-breakdown-chart";
-import Svg, { Path, Defs, Stop, LinearGradient } from "react-native-svg";
+import { useGoalsStore } from "@/stores/useGoalsStore";
+import { useScannedFoodStore } from "@/stores/useScannedFoodStore";
+import { useMealsStore } from "@/stores/useMealsStore";
+import { useActivityStore } from "@/stores/useActivityStore";
 
 type Period = "day" | "week" | "month" | "year";
 
-// Order matches the items array passed to <Selectors /> below,
-// so handleSelect can map the tapped index back to a Period.
 const PERIOD_ORDER: Period[] = ["day", "week", "month", "year"];
 
 const PERIOD_LABELS: Record<Period, string[]> = {
@@ -25,107 +24,29 @@ const PERIOD_LABELS: Record<Period, string[]> = {
   ],
 };
 
-// Calorie data per period. "day" is cumulative through the day (rises with
-// each meal then flattens overnight); the others are per-bucket totals.
-const NUTRITION_DATA: Record<Period,
-  {
-    totalCalories: number;
-    dailyAverage: number;
-    goalCalories: number;
-    carbs: string;
-    fat: string;
-    protein: string;
-    data: number[];
-  }>
- = {
-  day: {
-    totalCalories: 1840,
-    dailyAverage: 1790,
-    goalCalories: 2000,
-    carbs: "210g",
-    fat: "65g",
-    protein: "140g",
-    data: [0, 320, 680, 980, 1450, 1840, 1840],
-  },
-  week: {
-    totalCalories: 11540,
-    dailyAverage: 1649,
-    goalCalories: 2000,
-    carbs: "1470g",
-    fat: "455g",
-    protein: "980g",
-    data: [1800, 1650, 1840, 1200, 1750, 900, 1400],
-  },
-  month: {
-    totalCalories: 48720,
-    dailyAverage: 1697,
-    goalCalories: 2000,
-    carbs: "6300g",
-    fat: "1950g",
-    protein: "4200g",
-    data: [1700, 1620, 1780, 1690],
-  },
+const BODY_FAT_DATA: Record<Period, { weeklyChange: number; goal: number; data: number[] }> = {
+  day: { weeklyChange: -0.1, goal: 15.0, data: [19.1, 19.1, 19.05, 19.05, 19.0, 19.0, 19.0] },
+  week: { weeklyChange: -0.4, goal: 15.0, data: [19.4, 19.3, 19.3, 19.2, 19.1, 19.1, 19.0] },
+  month: { weeklyChange: -1, goal: 15.0, data: [20.5, 19.8, 19.1, 18.4] },
   year: {
-    totalCalories: 638400,
-    dailyAverage: 1749,
-    goalCalories: 2000,
-    carbs: "76650g",
-    fat: "23725g",
-    protein: "51100g",
-    data: [
-      1750, 1680, 1720, 1690, 1810, 1840,
-      1900, 1875, 1760, 1700, 1650, 1690,
-    ],
+    weeklyChange: -3.6, goal: 15.0,
+    data: [22.0, 21.6, 21.1, 20.7, 20.3, 19.9, 19.6, 19.3, 19.0, 18.7, 18.5, 18.4],
   },
 };
 
-// Body fat % per period.
-const BODY_FAT_DATA: Record<Period,{ weeklyChange: number; goal: number; data: number[] }> = {
-  day: {
-    weeklyChange: -0.1,
-    goal: 15.0,
-    data: [19.1, 19.1, 19.05, 19.05, 19.0, 19.0, 19.0],
-  },
-  week: {
-    weeklyChange: -0.4,
-    goal: 15.0,
-    data: [19.4, 19.3, 19.3, 19.2, 19.1, 19.1, 19.0],
-  },
-  month: {
-    weeklyChange: -1,
-    goal: 15.0,
-    data: [20.5, 19.8, 19.1, 18.4],
-  },
-  year: {
-    weeklyChange: -3.6,
-    goal: 15.0,
-    data: [
-      22.0, 21.6, 21.1, 20.7, 20.3, 19.9,
-      19.6, 19.3, 19.0, 18.7, 18.5, 18.4,
-    ],
-  },
-};
-
-// Macro targets (max) stay fixed since they're daily goals; only the
-// period's actual/average intake (value) changes.
 const MACRO_META = [
-  { key: "protein", label: "Protein", max: 150, unit: "g", color: "#E69F5B" },
-  { key: "carbs", label: "Carbs", max: 300, unit: "g", color: "#780B9F" },
-  { key: "fats", label: "Fats", max: 80, unit: "g", color: "#50B380" },
-  { key: "fiber", label: "Fiber", max: 35, unit: "g", color: "#1A6FD4" },
-  { key: "sugar", label: "Sugar", max: 50, unit: "g", color: "#E05C5C" },
+  { key: "protein", label: "Protein", unit: "g", color: "#E69F5B" },
+  { key: "carbs", label: "Carbs", unit: "g", color: "#780B9F" },
+  { key: "fat", label: "Fats", unit: "g", color: "#50B380" },
 ] as const;
 
-const MACRO_VALUES: Record<Period,Record<(typeof MACRO_META)[number]["key"], number>> = {
-  day: { protein: 112, carbs: 210, fats: 55, fiber: 22, sugar: 38 },
-  week: { protein: 108, carbs: 205, fats: 58, fiber: 21, sugar: 36 },
-  month: { protein: 115, carbs: 198, fats: 52, fiber: 24, sugar: 33 },
-  year: { protein: 120, carbs: 190, fats: 50, fiber: 26, sugar: 30 },
-};
+function formatGrams(n: number): string {
+  return `${Math.round(n)}g`;
+}
 
 export default function AnalyticsScreen() {
   const [activeSelector, setActiveSelector] = useState(0);
-  const [period, setPeriod] = useState<Period>("week");
+  const [period, setPeriod] = useState<Period>("day");
   const activeIndex = useSharedValue(0);
 
   function handleSelect(index: number) {
@@ -134,12 +55,146 @@ export default function AnalyticsScreen() {
     setPeriod(PERIOD_ORDER[index]);
   }
 
-  const nutrition = NUTRITION_DATA[period];
+  const goals = useGoalsStore();
+  const foods = useScannedFoodStore((s) => s.foods);
+  const getBucketsForPeriod = useScannedFoodStore((s) => s.getBucketsForPeriod);
+  
+  // Bring in the other stores to merge their data into the charts
+  const getPlanForDate = useMealsStore((s) => s.getPlanForDate);
+  const mealsHistory = useMealsStore((s) => s.history);
+  const basePlan = useMealsStore((s) => s.basePlan);
+  const activities = useActivityStore((s) => s.activities);
+
+  // Core merging logic: Zips Scanned Foods, Historical Meals, and Activities together
+  const buckets = useMemo(() => {
+    // 1. Get the base scanned food buckets
+    const baseBuckets = getBucketsForPeriod(period).map(b => ({ ...b }));
+    const now = new Date();
+
+    // Helper: Gets total meal plan macros for a specific date string
+    const getMealMacrosForDate = (dateISO: string) => {
+      const plan = getPlanForDate(dateISO);
+      let c = 0, p = 0, cb = 0, f = 0;
+      Object.values(plan).forEach((cat) => Object.values(cat).forEach((m) => {
+        c += m.nutrition_summary?.calories ?? m.nutrition?.per_serving?.calories ?? 0;
+        p += m.nutrition_summary?.protein_g ?? m.nutrition?.per_serving?.protein_g ?? 0;
+        cb += m.nutrition_summary?.carbohydrates_g ?? m.nutrition?.per_serving?.carbohydrates_g ?? 0;
+        f += m.nutrition_summary?.fat_g ?? m.nutrition?.per_serving?.fat_g ?? 0;
+      }));
+      return { calories: c, protein: p, carbs: cb, fat: f };
+    };
+
+    // Helper: Gets total burned calories for a specific date string
+    const getBurnedForDate = (dateISO: string) => {
+      return activities
+        .filter((a) => a.date?.startsWith(dateISO))
+        .reduce((sum, a) => sum + (a.caloriesBurned || 0), 0);
+    };
+
+    // Helper: Adds macros and subtracts burned calories from a specific bucket
+    const applyToBucket = (bucketIdx: number, dateISO: string) => {
+      const m = getMealMacrosForDate(dateISO);
+      const burned = getBurnedForDate(dateISO);
+      
+      baseBuckets[bucketIdx].calories = Math.max(0, baseBuckets[bucketIdx].calories + m.calories - burned);
+      baseBuckets[bucketIdx].protein += m.protein;
+      baseBuckets[bucketIdx].carbs += m.carbs;
+      baseBuckets[bucketIdx].fat += m.fat;
+      baseBuckets[bucketIdx].count += 1; // Treat the meal plan as a logged entry
+    };
+
+    if (period === "day") {
+      // Day buckets are a *running total* of 7 time slots.
+      // We distribute the daily meal plan and burned calories evenly across the day to match the curve.
+      const iso = now.toISOString().slice(0, 10);
+      const m = getMealMacrosForDate(iso);
+      const burned = getBurnedForDate(iso);
+      
+      for (let i = 0; i < 7; i++) {
+        const factor = (i + 1) / 7;
+        baseBuckets[i].calories = Math.max(0, baseBuckets[i].calories + (m.calories * factor) - (burned * factor));
+        baseBuckets[i].protein += m.protein * factor;
+        baseBuckets[i].carbs += m.carbs * factor;
+        baseBuckets[i].fat += m.fat * factor;
+      }
+    } 
+    else if (period === "week") {
+      // 7 slots (Mon-Sun)
+      const startOfWeek = new Date(now);
+      const getDayIdx = (d: Date) => (d.getDay() + 6) % 7;
+      startOfWeek.setDate(now.getDate() - getDayIdx(now));
+      
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startOfWeek);
+        d.setDate(d.getDate() + i);
+        applyToBucket(i, d.toISOString().slice(0, 10));
+      }
+    } 
+    else if (period === "month") {
+      // 4 slots (Weeks 1-4)
+      const d = new Date(now.getFullYear(), now.getMonth(), 1);
+      while (d.getMonth() === now.getMonth()) {
+        const idx = Math.min(3, Math.floor((d.getDate() - 1) / 7));
+        applyToBucket(idx, d.toISOString().slice(0, 10));
+        d.setDate(d.getDate() + 1);
+      }
+    } 
+    else if (period === "year") {
+      // 12 slots (Jan-Dec)
+      const d = new Date(now.getFullYear(), 0, 1);
+      while (d.getFullYear() === now.getFullYear()) {
+        const idx = d.getMonth();
+        applyToBucket(idx, d.toISOString().slice(0, 10));
+        d.setDate(d.getDate() + 1);
+      }
+    }
+
+    return baseBuckets;
+  }, [period, foods, activities, mealsHistory, basePlan, getBucketsForPeriod, getPlanForDate]);
+
+  // Aggregate totals across every bucket in the period
+  const periodTotals =
+    period === "day"
+      ? buckets[buckets.length - 1] ?? { calories: 0, protein: 0, carbs: 0, fat: 0, count: 0 }
+      : buckets.reduce(
+          (sum, b) => ({
+            calories: sum.calories + b.calories,
+            protein: sum.protein + b.protein,
+            carbs: sum.carbs + b.carbs,
+            fat: sum.fat + b.fat,
+            count: sum.count + b.count,
+          }),
+          { calories: 0, protein: 0, carbs: 0, fat: 0, count: 0 },
+        );
+
+  const bucketsWithData = buckets.filter((b) => b.count > 0).length;
+  
+  // Averages for larger periods. For 'day' we just show the total.
+  const dailyAverage = period === "day" 
+    ? periodTotals.calories 
+    : (bucketsWithData > 0 ? periodTotals.calories / bucketsWithData : 0);
+
+  const nutrition = {
+    totalCalories: periodTotals.calories,
+    dailyAverage,
+    goalCalories: goals.calories,
+    carbs: formatGrams(periodTotals.carbs),
+    fat: formatGrams(periodTotals.fat),
+    protein: formatGrams(periodTotals.protein),
+    data: buckets.map((b) => b.calories),
+  };
+
   const bodyFat = BODY_FAT_DATA[period];
+
+  const macroValues = {
+    protein: periodTotals.protein,
+    carbs: periodTotals.carbs,
+    fat: periodTotals.fat,
+  };
   const macros = MACRO_META.map((meta) => ({
     label: meta.label,
-    value: MACRO_VALUES[period][meta.key],
-    max: meta.max,
+    value: macroValues[meta.key],
+    max: period === "day" ? goals[meta.key] : goals[meta.key] * bucketsWithData, // Scale max up for weeks/months
     unit: meta.unit,
     color: meta.color,
   }));
@@ -182,7 +237,7 @@ export default function AnalyticsScreen() {
               labels={PERIOD_LABELS[period]}
             />
           </View>
-          <View className="pl-5">
+          <View className="pl-5 mb-32">
             <MacroBreakdownChart title="Macro Breakdown" macros={macros} />
           </View>
         </View>

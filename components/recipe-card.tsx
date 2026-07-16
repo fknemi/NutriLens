@@ -3,13 +3,12 @@ import { View, Text, Pressable, GestureResponderEvent } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { Recipe } from "@/services/recipe-api";
 import { useSavedRecipesStore } from "@/stores/useRecipesStore";
-
 type RecipeCardProps = {
   title: string;
   duration: string;
   calories: number;
   fats: number;
-  onPress?: (id: number) => void;
+  onPress?: (id: string) => void; // Change from number to string
   recipe: Recipe;
 };
 

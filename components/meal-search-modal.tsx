@@ -30,8 +30,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 // reference on every render, which Zustand's reference-equality check
 // reads as "changed," triggering a re-render, which re-runs the selector,
 // which returns another new `{}` — an infinite update loop.
-const EMPTY_SAVED_MEALS: Record<number, Recipe> = {};
-
+const EMPTY_SAVED_MEALS: Record<string, Recipe> = {}; // Change number to string
 const CATEGORY_LABELS: Record<MealCategory, string> = {
   breakfast: "Breakfast",
   lunch: "Lunch",
@@ -54,6 +53,7 @@ function MealResultRow({
   isSaved: boolean;
   onToggleSave: () => void;
 }) {
+    const calories = meal.nutrition_summary?.calories ?? meal.nutrition?.per_serving?.calories ?? 0;
   return (
     <View className="flex-row items-center justify-between bg-white rounded-2xl px-4 py-3">
       <View className="flex-1 pr-3">
@@ -117,8 +117,9 @@ export default function MealSearchModal({
   // closed / mid-transition) so hook order stays stable and savedMeals
   // below is always a valid Record rather than undefined.
   const savedMealsMap = useMealsStore((state) =>
-    category ? state.savedMeals[category] : EMPTY_SAVED_MEALS
+    category ? state.basePlan[category] : EMPTY_SAVED_MEALS
   );
+
   const saveMeal = useMealsStore((state) => state.saveMeal);
   const unsaveMeal = useMealsStore((state) => state.unsaveMeal);
   const savedMeals = Object.values(savedMealsMap);

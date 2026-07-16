@@ -15,30 +15,36 @@ import Svg, {
   LinearGradient,
   Defs,
   Stop,
-  Circle,
 } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Markdown from "react-native-markdown-display";
+
+// --- Store Imports ---
+import { useAllergensStore } from "@/stores/useAllergensStore";
+import { useDietStore } from "@/stores/useDietStore";
+import { useDislikedIngredientsStore } from "@/stores/useDislikedIngredientsStore";
+import { useGoalsStore } from "@/stores/useGoalsStore";
+import { useHydrationStore } from "@/stores/useHydrationStore";
+import { useSleepStore } from "@/stores/useSleepStore";
+import { useStepStore } from "@/stores/useStepStore";
+import { useActivityStore } from "@/stores/useActivityStore";
+import { useScannedFoodStore } from "@/stores/useScannedFoodStore";
+import { useMeditationStore } from "@/stores/useMeditationStore";
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+const OLLAMA_API_KEY = "3a72b06ce62d4547b41ad4a40459647b.ZMhRtMMY80YxohN2Im9wYrBb"; 
+
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type Message = {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   text: string;
   timestamp: Date;
 };
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
-
-function BackIcon() {
-  return (
-    <Svg width={38} height={38} viewBox="0 0 42 42" fill="none">
-      <Path
-        d="M21 0C16.8466 0 12.7865 1.23163 9.33303 3.53914C5.8796 5.84665 3.18798 9.1264 1.59854 12.9636C0.00909901 16.8009 -0.406771 21.0233 0.403518 25.0969C1.21381 29.1705 3.21386 32.9123 6.15077 35.8492C9.08767 38.7861 12.8295 40.7862 16.9031 41.5965C20.9767 42.4068 25.1991 41.9909 29.0364 40.4015C32.8736 38.812 36.1534 36.1204 38.4609 32.667C40.7684 29.2135 42 25.1534 42 21C41.9941 15.4323 39.7797 10.0942 35.8427 6.15725C31.9058 2.22026 26.5677 0.00587963 21 0ZM29.0769 22.6154H16.8222L20.5275 26.3187C20.6776 26.4687 20.7966 26.6469 20.8779 26.843C20.9591 27.0391 21.0009 27.2493 21.0009 27.4615C21.0009 27.6738 20.9591 27.884 20.8779 28.0801C20.7966 28.2762 20.6776 28.4543 20.5275 28.6044C20.3774 28.7545 20.1992 28.8736 20.0031 28.9548C19.807 29.036 19.5969 29.0778 19.3846 29.0778C19.1724 29.0778 18.9622 29.036 18.7661 28.9548C18.57 28.8736 18.3918 28.7545 18.2417 28.6044L11.7802 22.1429C11.63 21.9929 11.5109 21.8147 11.4296 21.6186C11.3483 21.4225 11.3064 21.2123 11.3064 21C11.3064 20.7877 11.3483 20.5775 11.4296 20.3814C11.5109 20.1853 11.63 20.0071 11.7802 19.8571L18.2417 13.3956C18.5448 13.0925 18.956 12.9222 19.3846 12.9222C19.8133 12.9222 20.2244 13.0925 20.5275 13.3956C20.8306 13.6987 21.0009 14.1098 21.0009 14.5385C21.0009 14.9671 20.8306 15.3782 20.5275 15.6813L16.8222 19.3846H29.0769C29.5054 19.3846 29.9162 19.5548 30.2192 19.8577C30.5221 20.1607 30.6923 20.5716 30.6923 21C30.6923 21.4284 30.5221 21.8393 30.2192 22.1422C29.9162 22.4452 29.5054 22.6154 29.0769 22.6154Z"
-        fill="black"
-      />
-    </Svg>
-  );
-}
 
 function AIIconButton() {
   return (
@@ -64,47 +70,19 @@ function AIIconButton() {
         fill="url(#paint3_linear_7_35)"
       />
       <Defs>
-        <LinearGradient
-          id="paint0_linear_7_35"
-          x1={35.4337}
-          y1={32.325}
-          x2={-11.3145}
-          y2={-0.196628}
-          gradientUnits="userSpaceOnUse"
-        >
+        <LinearGradient id="paint0_linear_7_35" x1={35.4337} y1={32.325} x2={-11.3145} y2={-0.196628} gradientUnits="userSpaceOnUse">
           <Stop stopColor="#B93BC4" />
           <Stop offset={0.514423} stopColor="#3C79DF" />
         </LinearGradient>
-        <LinearGradient
-          id="paint1_linear_7_35"
-          x1={10.4026}
-          y1={28.9044}
-          x2={29.4633}
-          y2={15.206}
-          gradientUnits="userSpaceOnUse"
-        >
+        <LinearGradient id="paint1_linear_7_35" x1={10.4026} y1={28.9044} x2={29.4633} y2={15.206} gradientUnits="userSpaceOnUse">
           <Stop stopColor="#B93BC4" />
           <Stop offset={0.495192} stopColor="#3C79DF" />
         </LinearGradient>
-        <LinearGradient
-          id="paint2_linear_7_35"
-          x1={19.3333}
-          y1={17.3333}
-          x2={27.4324}
-          y2={8.96655}
-          gradientUnits="userSpaceOnUse"
-        >
+        <LinearGradient id="paint2_linear_7_35" x1={19.3333} y1={17.3333} x2={27.4324} y2={8.96655} gradientUnits="userSpaceOnUse">
           <Stop offset={0.211538} stopColor="#ADA816" />
           <Stop offset={0.711538} stopColor="#F6EDB9" />
         </LinearGradient>
-        <LinearGradient
-          id="paint3_linear_7_35"
-          x1={24.3333}
-          y1={30.5333}
-          x2={32.4324}
-          y2={22.1665}
-          gradientUnits="userSpaceOnUse"
-        >
+        <LinearGradient id="paint3_linear_7_35" x1={24.3333} y1={30.5333} x2={32.4324} y2={22.1665} gradientUnits="userSpaceOnUse">
           <Stop stopColor="#16AD27" />
           <Stop offset={0.456731} stopColor="#31DA22" />
         </LinearGradient>
@@ -122,32 +100,65 @@ function SendIcon({ disabled }: { disabled: boolean }) {
           <Stop offset="1" stopColor={disabled ? "#ccc" : "#3C79DF"} />
         </LinearGradient>
       </Defs>
-      <Path
-        d="M22 2L11 13"
-        stroke="url(#sendGrad)"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M22 2L15 22L11 13L2 9L22 2Z"
-        stroke="url(#sendGrad)"
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <Path d="M22 2L11 13" stroke="url(#sendGrad)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="url(#sendGrad)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
+
+// ─── Markdown Styles ─────────────────────────────────────────────────────────
+// Matches the assistant bubble's base typography (14.5/21, #111) while adding
+// sensible styling for the markdown-only elements (bold, lists, code, links).
+
+const markdownStyles = {
+  body: { fontSize: 14.5, lineHeight: 21, color: "#111" },
+  paragraph: { marginTop: 0, marginBottom: 8 },
+  strong: { fontWeight: "700" as const },
+  em: { fontStyle: "italic" as const },
+  bullet_list: { marginBottom: 4 },
+  ordered_list: { marginBottom: 4 },
+  list_item: { flexDirection: "row" as const, marginBottom: 4 },
+  code_inline: {
+    backgroundColor: "#F3F4F8",
+    color: "#B93BC4",
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    fontSize: 13.5,
+  },
+  code_block: {
+    backgroundColor: "#F3F4F8",
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 13.5,
+  },
+  fence: {
+    backgroundColor: "#F3F4F8",
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 13.5,
+  },
+  link: { color: "#3C79DF" },
+  heading1: { fontSize: 19, fontWeight: "700" as const, marginTop: 4, marginBottom: 6 },
+  heading2: { fontSize: 17, fontWeight: "700" as const, marginTop: 4, marginBottom: 6 },
+  heading3: { fontSize: 15.5, fontWeight: "700" as const, marginTop: 4, marginBottom: 4 },
+  blockquote: {
+    backgroundColor: "#F7F8FA",
+    borderLeftWidth: 3,
+    borderLeftColor: "#EDEFF3",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginVertical: 4,
+  },
+  hr: { backgroundColor: "#EDEFF3", height: 1, marginVertical: 8 },
+};
 
 // ─── Bubble ──────────────────────────────────────────────────────────────────
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === "user";
   return (
-    <View
-      className={`mb-3 max-w-[80%] ${isUser ? "self-end" : "self-start"}`}
-    >
+    <View className={`mb-3 max-w-[80%] ${isUser ? "self-end" : "self-start"}`}>
       {!isUser && (
         <View className="flex-row items-center gap-1.5 mb-1 ml-1">
           <AIIconButton />
@@ -178,25 +189,16 @@ function MessageBubble({ message }: { message: Message }) {
               }
         }
       >
-        <Text
-          style={{
-            fontSize: 14.5,
-            lineHeight: 21,
-            color: "#111",
-          }}
-        >
-          {message.text}
-        </Text>
+        {isUser ? (
+          <Text style={{ fontSize: 14.5, lineHeight: 21, color: "#111" }}>
+            {message.text}
+          </Text>
+        ) : (
+          <Markdown style={markdownStyles}>{message.text}</Markdown>
+        )}
       </View>
-      <Text
-        className={`text-[10px] text-gray-400 mt-1 ${
-          isUser ? "text-right mr-1" : "ml-1"
-        }`}
-      >
-        {message.timestamp.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
+      <Text className={`text-[10px] text-gray-400 mt-1 ${isUser ? "text-right mr-1" : "ml-1"}`}>
+        {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
       </Text>
     </View>
   );
@@ -229,13 +231,7 @@ function TypingIndicator() {
         {[0, 1, 2].map((i) => (
           <View
             key={i}
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: 3.5,
-              backgroundColor: "#C084FC",
-              opacity: 0.6 + i * 0.2,
-            }}
+            style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: "#C084FC", opacity: 0.6 + i * 0.2 }}
           />
         ))}
       </View>
@@ -245,48 +241,30 @@ function TypingIndicator() {
 
 // ─── Empty State ─────────────────────────────────────────────────────────────
 
-function EmptyState() {
+function EmptyState({ onSelectPrompt }: { onSelectPrompt: (prompt: string) => void }) {
   return (
-    <View className="flex-1 items-center justify-center px-8 gap-4">
+    <View className="flex-1 items-center justify-center px-8 gap-4 mt-8">
       <AIIconButton />
-      <Text
-        style={{
-          fontSize: 20,
-          fontWeight: "700",
-          color: "#111",
-          textAlign: "center",
-        }}
-      >
+      <Text style={{ fontSize: 20, fontWeight: "700", color: "#111", textAlign: "center" }}>
         Ask me anything
       </Text>
-      <Text
-        style={{
-          fontSize: 14,
-          color: "#848484",
-          textAlign: "center",
-          lineHeight: 20,
-        }}
-      >
+      <Text style={{ fontSize: 14, color: "#848484", textAlign: "center", lineHeight: 20 }}>
         I can help you track nutrition, understand your data, suggest meal
         plans, and more.
       </Text>
       <View className="flex-row flex-wrap gap-2 justify-center mt-2">
         {[
-          "How many calories today?",
-          "Suggest a high-protein meal",
-          "Am I hitting my macros?",
+          "How many calories have I eaten today?",
+          "Suggest a high-protein dinner",
+          "Am I hitting my water goals?",
         ].map((prompt) => (
-          <View
+          <Pressable
             key={prompt}
-            style={{
-              backgroundColor: "#F3F4F8",
-              borderRadius: 20,
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-            }}
+            onPress={() => onSelectPrompt(prompt)}
+            style={{ backgroundColor: "#F3F4F8", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }}
           >
             <Text style={{ fontSize: 13, color: "#555" }}>{prompt}</Text>
-          </View>
+          </Pressable>
         ))}
       </View>
     </View>
@@ -294,16 +272,22 @@ function EmptyState() {
 }
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
-// ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function AIChatScreen({ onBack }: { onBack?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
 
-  async function handleSend() {
-    const trimmed = input.trim();
+  const scrollRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
+
+  function handlePresetPrompt(promptText: string) {
+    setInput(promptText);
+    setTimeout(() => triggerSend(promptText), 50);
+  }
+
+  async function triggerSend(textToSend: string) {
+    const trimmed = textToSend.trim();
     if (!trimmed || loading) return;
 
     const userMsg: Message = {
@@ -320,15 +304,60 @@ export default function AIChatScreen({ onBack }: { onBack?: () => void }) {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      // 1. SILENTLY FETCH STORE DATA
+      const todayISO = new Date().toISOString().slice(0, 10);
+
+      const diet = useDietStore.getState().diet;
+      const allergens = useAllergensStore.getState().allergens;
+      const dislikes = useDislikedIngredientsStore.getState().ingredients;
+      const goals = useGoalsStore.getState();
+      const hydration = useHydrationStore.getState();
+      const steps = useStepStore.getState();
+
+      const activities = useActivityStore.getState().activities.filter((a) => a.date?.startsWith(todayISO));
+      const burnedKcal = activities.reduce((sum, a) => sum + (a.caloriesBurned || 0), 0);
+
+      const meditations = useMeditationStore.getState().sessions.filter((s) => s.date.startsWith(todayISO));
+      const medMins = Math.floor(meditations.reduce((sum, s) => sum + s.durationSeconds, 0) / 60);
+
+      const sleepMs = useSleepStore.getState().totalSleepToday();
+      const sleepHrs = (sleepMs / (1000 * 60 * 60)).toFixed(1);
+
+      const foods = useScannedFoodStore.getState().foods.filter((f) => f.scannedAt.startsWith(todayISO));
+      const foodList = foods.length > 0 ? foods.map((f) => f.labelText).join(", ") : "None logged today";
+
+      // 2. CONSTRUCT DYNAMIC SYSTEM PROMPT
+      const dynamicSystemPrompt = `
+      You are a helpful nutrition and fitness AI assistant inside the NutriLens app. 
+      Keep responses concise, friendly, and conversational. Do NOT explicitly list out the user's data unless they ask. Just use it as context to give tailored advice.
+
+      [USER PROFILE]
+      Dietary Preference: ${diet || 'None'}
+      Allergies: ${allergens.length ? allergens.join(', ') : 'None'}
+      Dislikes: ${dislikes.length ? dislikes.join(', ') : 'None'}
+      Daily Targets: ${goals.calories} kcal, ${goals.protein}g Protein, ${goals.carbs}g Carbs, ${goals.fat}g Fat.
+
+      [TODAY'S PROGRESS (${todayISO})]
+      Water: ${hydration.dailyVolume}ml / ${hydration.dailyGoal}ml
+      Steps: ${steps.steps} / ${steps.goal}
+      Sleep: ${sleepHrs} hours
+      Meditation: ${medMins} minutes
+      Workouts Logged: ${activities.length ? activities.map(a => a.name).join(', ') : 'None'} (${burnedKcal} kcal burned)
+      Foods Logged: ${foodList}
+      `;
+
+      // 3. API CALL TO OLLAMA CLOUD
+      const response = await fetch("https://ollama.com/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OLLAMA_API_KEY}`
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1000,
-          system:
-            "You are a helpful nutrition and fitness AI assistant. Help users track calories, understand their macro data, plan meals, and reach their health goals. Keep responses concise and friendly.",
+          model: "gemma4:31b-cloud",
+          stream: false,
           messages: [
+            { role: "system", content: dynamicSystemPrompt },
             ...[...messages, userMsg].map((m) => ({
               role: m.role,
               content: m.text,
@@ -338,8 +367,7 @@ export default function AIChatScreen({ onBack }: { onBack?: () => void }) {
       });
 
       const data = await response.json();
-      const reply =
-        data?.content?.[0]?.text ?? "Sorry, I couldn't get a response.";
+      const reply = data?.message?.content ?? "Sorry, I couldn't get a response. Please check your API connection.";
 
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -349,13 +377,14 @@ export default function AIChatScreen({ onBack }: { onBack?: () => void }) {
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          text: "Something went wrong. Please try again.",
+          text: "Something went wrong communicating with Ollama Cloud. Please check your network or API Key.",
           timestamp: new Date(),
         },
       ]);
@@ -367,14 +396,20 @@ export default function AIChatScreen({ onBack }: { onBack?: () => void }) {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-[#F7F8FA]"
+      style={{ flex: 1, backgroundColor: "#F7F8FA" }}
+      // "height" on Android avoids relying on windowSoftInputMode/native resize,
+      // which is often not configured correctly (especially in Expo managed apps)
+      // and otherwise leaves the input bar with no keyboard handling at all.
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      // No header in this screen, so the offset should just be the safe-area
+      // top inset (0 if this view sits under a navigator header — adjust if
+      // you render a custom header above this component).
+      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
     >
       {/* ── Messages ── */}
       <ScrollView
         ref={scrollRef}
-        className="flex-1"
+        style={{ flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: 16,
@@ -382,13 +417,14 @@ export default function AIChatScreen({ onBack }: { onBack?: () => void }) {
           paddingBottom: 8,
         }}
         keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() =>
           scrollRef.current?.scrollToEnd({ animated: true })
         }
       >
         {messages.length === 0 && !loading ? (
-          <EmptyState />
+          <EmptyState onSelectPrompt={handlePresetPrompt} />
         ) : (
           <>
             {messages.map((msg) => (
@@ -404,7 +440,13 @@ export default function AIChatScreen({ onBack }: { onBack?: () => void }) {
         style={{
           paddingHorizontal: 16,
           paddingTop: 10,
-          paddingBottom: Platform.OS === "ios" ? 34 : 16,
+          // KeyboardAvoidingView's "padding"/"height" behavior already shifts
+          // this whole view up by the keyboard height, so once the keyboard
+          // is open there's no safe-area bottom inset to account for anymore
+          // (the keyboard itself occupies that space). Only add insets.bottom
+          // when the keyboard is closed. The extra 12px above that is just
+          // breathing room so the bar doesn't sit flush against the keyboard.
+          paddingBottom: insets.bottom + 20,
           backgroundColor: "#F7F8FA",
           flexDirection: "row",
           alignItems: "flex-end",
@@ -434,21 +476,20 @@ export default function AIChatScreen({ onBack }: { onBack?: () => void }) {
               color: "#111",
               maxHeight: 100,
             }}
-            onSubmitEditing={handleSend}
+            onSubmitEditing={() => triggerSend(input)}
             returnKeyType="send"
             blurOnSubmit={false}
           />
         </View>
 
         <Pressable
-          onPress={handleSend}
+          onPress={() => triggerSend(input)}
           disabled={!input.trim() || loading}
           style={{
             width: 48,
             height: 48,
             borderRadius: 24,
-            backgroundColor:
-              input.trim() && !loading ? "#111" : "#EDEFF3",
+            backgroundColor: input.trim() && !loading ? "#111" : "#EDEFF3",
             alignItems: "center",
             justifyContent: "center",
           }}

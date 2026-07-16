@@ -2,7 +2,9 @@ import { View, Text, Pressable, TextInput } from "react-native";
 import Svg, { Path, Defs, Stop, LinearGradient } from "react-native-svg";
 import { useScannedFoodStore, getNutrientValue } from "@/stores/useScannedFoodStore";
 import { useGoalsStore } from "@/stores/useGoalsStore";
-import { useState } from "react";
+import { useActivityStore } from "@/stores/useActivityStore";
+import { useMealsStore } from "@/stores/useMealsStore";
+import { useState, useEffect } from "react";
 
 const RADIUS = 80;
 const ITEM_COUNT = 13;
@@ -11,45 +13,71 @@ const SWEEP_DEG = 180;
 const SVG_SLANT_CORRECTION = -13;
 
 function CaloriesCard() {
+  const today = new Date().toISOString().slice(0, 10);
+
   const foods = useScannedFoodStore((s) => s.foods);
-  
-  // 1. Pull goals and the setter from our new store!
+  const activities = useActivityStore((s) => s.activities);
   const { calories: goalCalories, protein: goalProtein, carbs: goalCarbs, fat: goalFat, setGoal } = useGoalsStore();
+  
+  const todaysMealPlan = useMealsStore((s) => s.history[today] || s.basePlan);
+  const syncTodaySnapshot = useMealsStore((s) => s.syncTodaySnapshot);
 
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(goalCalories.toString());
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todaysFoods = foods.filter((f) => f.scannedAt.startsWith(today));
+  useEffect(() => {
+    syncTodaySnapshot();
+  }, [syncTodaySnapshot]);
 
-  const totalCalories = todaysFoods.reduce(
-    (sum, f) => sum + (getNutrientValue(f, "Energy") ?? 0) * (f.servingsConsumed ?? 1), 0
+  // --- Calculate Burned Calories (Today Only) ---
+  const todaysActivities = activities.filter((act) => 
+    act.date ? act.date.startsWith(today) : true 
   );
-  const totalProtein = todaysFoods.reduce(
+  const burnedCalories = todaysActivities.reduce(
+    (sum, act) => sum + (act.caloriesBurned || 0), 0
+  );
+
+  // --- Calculate Macros (Meals + Scanned Food) ---
+  let mealProtein = 0;
+  let mealCarbs = 0;
+  let mealFat = 0;
+
+  Object.values(todaysMealPlan).forEach((categoryRecord) => {
+    Object.values(categoryRecord).forEach((meal) => {
+      mealProtein += meal.nutrition_summary?.protein_g ?? meal.nutrition?.per_serving?.protein_g ?? 0;
+      mealCarbs += meal.nutrition_summary?.carbohydrates_g ?? meal.nutrition?.per_serving?.carbohydrates_g ?? 0;
+      mealFat += meal.nutrition_summary?.fat_g ?? meal.nutrition?.per_serving?.fat_g ?? 0;
+    });
+  });
+
+  const todaysFoods = foods.filter((f) => f.scannedAt.startsWith(today));
+  
+  const totalProtein = mealProtein + todaysFoods.reduce(
     (sum, f) => sum + (getNutrientValue(f, "Protein") ?? 0) * (f.servingsConsumed ?? 1), 0
   );
-  const totalCarbs = todaysFoods.reduce(
+  const totalCarbs = mealCarbs + todaysFoods.reduce(
     (sum, f) => sum + (getNutrientValue(f, "Carbohydrate") ?? 0) * (f.servingsConsumed ?? 1), 0
   );
-  const totalFat = todaysFoods.reduce(
+  const totalFat = mealFat + todaysFoods.reduce(
     (sum, f) => sum + (getNutrientValue(f, "Total lipid") ?? 0) * (f.servingsConsumed ?? 1), 0
   );
 
-  const remaining = Math.max(goalCalories - totalCalories, 0);
+  // --- RING MATH: Goal (Calories) vs Burned (Activity) ---
+  // Remaining = Your Goal - Calories Burned
+  const remaining = Math.max(goalCalories - burnedCalories, 0);
+  
+  // Fill the ring based on Burned / Goal
   const filledCount = Math.round(
-    Math.min(totalCalories / goalCalories, 1) * ITEM_COUNT
+    Math.min(burnedCalories / goalCalories, 1) * ITEM_COUNT
   );
 
   const fmt = (n: number) => Math.round(n);
-
   const items = Array.from({ length: ITEM_COUNT });
 
   const toggleEdit = () => {
     if (isEditing) {
-      // 2. Save the new value directly to the global store
       setGoal("calories", parseInt(inputValue) || 2000);
     } else {
-      // Sync the input value with the current goal when opening edit mode
       setInputValue(goalCalories.toString());
     }
     setIsEditing(!isEditing);
@@ -67,21 +95,24 @@ function CaloriesCard() {
             className="text-2xl font-medium bg-[#EDEFF3] px-3 py-1 rounded-lg w-32 text-[#111]"
           />
         ) : (
-          <Text className="text-2xl font-medium">Calories</Text>
+          <Text className="text-2xl font-medium">Activity Calories</Text>
         )}
-        
-        <Pressable 
+
+        <Pressable
           onPress={toggleEdit}
           className="bg-[#EDEFF3] w-16 flex items-center justify-center py-2 rounded-lg"
         >
-          <Text className="text-sm font-medium">{isEditing ? "Save" : "Edit"}</Text>
+          <Text className="text-sm font-medium">
+            {isEditing ? "Save" : "Edit"}
+          </Text>
         </Pressable>
       </View>
 
       <View className="w-full h-72 relative items-center justify-end mt-4">
         <View className="absolute left-1/2 bottom-32">
           {items.map((_, i) => {
-            const angleDeg = START_ANGLE_DEG + (i * SWEEP_DEG) / (ITEM_COUNT - 1);
+            const angleDeg =
+              START_ANGLE_DEG + (i * SWEEP_DEG) / (ITEM_COUNT - 1);
             const angleRad = (angleDeg * Math.PI) / 180;
             const x = RADIUS * Math.cos(angleRad);
             const y = RADIUS * Math.sin(angleRad);
@@ -112,26 +143,9 @@ function CaloriesCard() {
 
         <View className="items-center -translate-y-2">
           <Svg width={47} height={64} viewBox="0 0 47 64" fill="none">
-            <Path
-              d="M44.0149 29.0784C43.204 32.3619 40.9358 34.1282 39.5961 34.9224C38.9262 35.3136 38.1153 35.2781 37.4807 34.8276C36.8696 34.4009 36.564 33.6778 36.6933 32.9428C38.3386 22.76 29.1486 16.9395 28.0791 16.2992C27.9968 16.2518 27.9146 16.1806 27.8323 16.1095C21.1454 10.5736 22.5204 3.49669 23.7896 0C21.1454 1.26841 19.1475 2.9635 17.8313 5.04983C16.5503 7.08874 16.233 9.05649 15.5396 13.4187C15.2693 15.0782 15.1165 16.5126 14.9873 17.781C14.7052 20.626 14.4584 23.0798 13.0129 26.2689C11.2149 30.2401 10.0161 30.5601 9.16996 30.3704C8.04175 30.1215 7.86545 28.9598 7.7127 27.9404C7.61868 27.2765 7.51292 26.5297 7.21911 25.8184C6.63151 24.3841 5.29177 23.1394 3.2234 22.1555C3.5172 24.5145 3.4937 28.865 1.15503 34.7683C0.062108 38.4905 -0.255217 42.3313 0.203133 46.1127C0.555695 48.9813 1.3196 51.4707 1.86016 52.7154C3.3997 56.2242 6.74903 58.7255 10.3924 60.4561C9.98103 59.9108 9.65197 59.3417 9.38164 58.7372C8.89981 57.6111 8.47675 55.9515 8.28872 54.4223C7.99492 51.9923 8.1947 49.5266 8.89983 47.1202C8.91158 47.0846 8.93508 47.0016 8.95859 46.9661C10.2748 43.6588 10.1691 41.3828 9.99277 40.3278C9.89875 39.7469 10.1338 39.1542 10.5804 38.7986C11.0387 38.4193 11.6733 38.3363 12.2257 38.5852C14.0237 39.3795 15.1989 40.47 15.7513 41.8095C15.7748 41.8807 15.7983 41.9399 15.8336 41.9992C16.5387 40.4345 16.6562 39.2727 16.8207 37.6843C16.903 36.9138 16.9853 36.0485 17.1498 35.0408C17.5729 32.4566 17.8079 31.0222 18.7363 29.5523C19.7588 27.9283 21.3101 26.6599 23.3784 25.759C24.0013 25.4982 24.6947 25.6286 25.1648 26.1028C25.6113 26.5769 25.7524 27.2526 25.4938 27.8453C24.7652 29.576 24.0013 32.8833 27.1156 35.4912C28.0792 36.0839 33.0269 39.4267 33.0151 45.2112C33.3442 44.7726 33.6027 44.2273 33.7085 43.516C33.8143 42.7929 34.3666 42.2358 35.0835 42.1528C35.8121 42.0579 36.4937 42.4491 36.7641 43.1367C38.5034 47.416 40.701 55.311 36.1412 60.894C39.8666 59.1633 42.6518 56.745 44.4613 53.6867C49.1269 45.7564 46.3769 35.242 44.0147 29.0771L44.0149 29.0784Z"
-              fill="url(#paint0_linear_9_13)"
-            />
-            <Path
-              d="M35.3302 45.757C34.8249 46.7409 34.0257 47.5706 33.0268 48.1752C32.4862 48.4834 31.8046 48.4597 31.2992 48.0922C30.7939 47.7366 30.5471 47.1439 30.6294 46.5275C31.5342 40.9916 26.4809 37.7672 25.9051 37.4235C25.8463 37.388 25.7405 37.305 25.6935 37.2694C22.2619 34.4126 22.2972 30.9038 22.873 28.5918C21.9211 29.1845 21.1807 29.9195 20.6519 30.7611C19.9585 31.8517 19.7823 32.9541 19.3827 35.4079C19.2299 36.3444 19.1594 37.1386 19.0771 37.8973C18.9126 39.5806 18.7598 41.0386 17.8902 42.9471C16.9617 45.0098 16.1509 45.8039 15.1402 45.5906C14.1648 45.3772 14.012 44.3696 13.9297 43.7888C13.871 43.4332 13.8122 43.0301 13.6712 42.6744C13.4597 42.141 13.0131 41.6669 12.355 41.2283C12.402 42.7338 12.1904 44.986 11.0505 47.831C10.4629 49.8818 10.2866 52.0155 10.5451 54.1256C10.7331 55.7378 11.1562 57.101 11.4618 57.7885C13.0366 61.3685 17.7609 63.0043 21.4509 63.7512C22.1325 63.8934 22.8494 63.9645 23.5898 63.9882C23.6838 63.9882 23.7543 63.9882 23.8484 64.0001H24.0481C25.5524 64.0001 27.0449 63.763 28.4435 63.3126C30.6999 62.5776 32.7329 61.2974 34.2137 59.6259C37.7041 55.6311 36.6699 49.7635 35.3302 45.757Z"
-              fill="url(#paint1_linear_9_13)"
-            />
-            <Defs>
-              <LinearGradient id="paint0_linear_9_13" x1={23.1585} y1={39.5504} x2={23.4767} y2={60.8944} gradientUnits="userSpaceOnUse">
-                <Stop stopColor="#E86841" />
-                <Stop offset={1} stopColor="#F8DA6C" />
-              </LinearGradient>
-              <LinearGradient id="paint1_linear_9_13" x1={23.3163} y1={51.5894} x2={23.5096} y2={64} gradientUnits="userSpaceOnUse">
-                <Stop stopColor="#E86841" />
-                <Stop offset={1} stopColor="#F8DA6C" />
-              </LinearGradient>
-            </Defs>
+             <Path d="M44.0149 29.0784C43.204 32.3619 40.9358 34.1282 39.5961 34.9224C38.9262 35.3136 38.1153 35.2781 37.4807 34.8276C36.8696 34.4009 36.564 33.6778 36.6933 32.9428C38.3386 22.76 29.1486 16.9395 28.0791 16.2992C27.9968 16.2518 27.9146 16.1806 27.8323 16.1095C21.1454 10.5736 22.5204 3.49669 23.7896 0C21.1454 1.26841 19.1475 2.9635 17.8313 5.04983C16.5503 7.08874 16.233 9.05649 15.5396 13.4187C15.2693 15.0782 15.1165 16.5126 14.9873 17.781C14.7052 20.626 14.4584 23.0798 13.0129 26.2689C11.2149 30.2401 10.0161 30.5601 9.16996 30.3704C8.04175 30.1215 7.86545 28.9598 7.7127 27.9404C7.61868 27.2765 7.51292 26.5297 7.21911 25.8184C6.63151 24.3841 5.29177 23.1394 3.2234 22.1555C3.5172 24.5145 3.4937 28.865 1.15503 34.7683C0.062108 38.4905 -0.255217 42.3313 0.203133 46.1127C0.555695 48.9813 1.3196 51.4707 1.86016 52.7154C3.3997 56.2242 6.74903 58.7255 10.3924 60.4561C9.98103 59.9108 9.65197 59.3417 9.38164 58.7372C8.89981 57.6111 8.47675 55.9515 8.28872 54.4223C7.99492 51.9923 8.1947 49.5266 8.89983 47.1202C8.91158 47.0846 8.93508 47.0016 8.95859 46.9661C10.2748 43.6588 10.1691 41.3828 9.99277 40.3278C9.89875 39.7469 10.1338 39.1542 10.5804 38.7986C11.0387 38.4193 11.6733 38.3363 12.2257 38.5852C14.0237 39.3795 15.1989 40.47 15.7513 41.8095C15.7748 41.8807 15.7983 41.9399 15.8336 41.9992C16.5387 40.4345 16.6562 39.2727 16.8207 37.6843C16.903 36.9138 16.9853 36.0485 17.1498 35.0408C17.5729 32.4566 17.8079 31.0222 18.7363 29.5523C19.7588 27.9283 21.3101 26.6599 23.3784 25.759C24.0013 25.4982 24.6947 25.6286 25.1648 26.1028C25.6113 26.5769 25.7524 27.2526 25.4938 27.8453C24.7652 29.576 24.0013 32.8833 27.1156 35.4912C28.0792 36.0839 33.0269 39.4267 33.0151 45.2112C33.3442 44.7726 33.6027 44.2273 33.7085 43.516C33.8143 42.7929 34.3666 42.2358 35.0835 42.1528C35.8121 42.0579 36.4937 42.4491 36.7641 43.1367C38.5034 47.416 40.701 55.311 36.1412 60.894C39.8666 59.1633 42.6518 56.745 44.4613 53.6867C49.1269 45.7564 46.3769 35.242 44.0147 29.0771L44.0149 29.0784Z" fill="url(#paint0_linear_9_13)" />
+            <Path d="M35.3302 45.757C34.8249 46.7409 34.0257 47.5706 33.0268 48.1752C32.4862 48.4834 31.8046 48.4597 31.2992 48.0922C30.7939 47.7366 30.5471 47.1439 30.6294 46.5275C31.5342 40.9916 26.4809 37.7672 25.9051 37.4235C25.8463 37.388 25.7405 37.305 25.6935 37.2694C22.2619 34.4126 22.2972 30.9038 22.873 28.5918C21.9211 29.1845 21.1807 29.9195 20.6519 30.7611C19.9585 31.8517 19.7823 32.9541 19.3827 35.4079C19.2299 36.3444 19.1594 37.1386 19.0771 37.8973C18.9126 39.5806 18.7598 41.0386 17.8902 42.9471C16.9617 45.0098 16.1509 45.8039 15.1402 45.5906C14.1648 45.3772 14.012 44.3696 13.9297 43.7888C13.871 43.4332 13.8122 43.0301 13.6712 42.6744C13.4597 42.141 13.0131 41.6669 12.355 41.2283C12.402 42.7338 12.1904 44.986 11.0505 47.831C10.4629 49.8818 10.2866 52.0155 10.5451 54.1256C10.7331 55.7378 11.1562 57.101 11.4618 57.7885C13.0366 61.3685 17.7609 63.0043 21.4509 63.7512C22.1325 63.8934 22.8494 63.9645 23.5898 63.9882C23.6838 63.9882 23.7543 63.9882 23.8484 64.0001H24.0481C25.5524 64.0001 27.0449 63.763 28.4435 63.3126C30.6999 62.5776 32.7329 61.2974 34.2137 59.6259C37.7041 55.6311 36.6699 49.7635 35.3302 45.757Z" fill="url(#paint1_linear_9_13)" />
           </Svg>
-
           <View className="flex items-center justify-center mt-4">
             <Text className="text-xl font-bold">{fmt(remaining)}</Text>
             <Text className="text-md">Remaining</Text>
@@ -149,7 +163,6 @@ function CaloriesCard() {
             <Text className="text-lg font-medium text-[#818181]">Protein</Text>
             <View className="flex flex-row items-end justify-center">
               <Text className="text-lg font-medium">{fmt(totalProtein)}/</Text>
-              {/* 3. Updated to use store values */}
               <Text className="text-sm relative top-[2px] font-medium">{goalProtein}g</Text>
             </View>
           </View>
@@ -164,7 +177,6 @@ function CaloriesCard() {
             <Text className="text-lg font-medium text-[#818181]">Carbs</Text>
             <View className="flex flex-row items-end justify-center">
               <Text className="text-lg font-medium">{fmt(totalCarbs)}/</Text>
-              {/* Updated to use store values */}
               <Text className="text-sm relative top-[2px] font-medium">{goalCarbs}g</Text>
             </View>
           </View>
@@ -180,7 +192,6 @@ function CaloriesCard() {
             <Text className="text-lg font-medium text-[#818181]">Fat</Text>
             <View className="flex flex-row items-end justify-center">
               <Text className="text-lg font-medium">{fmt(totalFat)}/</Text>
-              {/* Updated to use store values */}
               <Text className="text-sm relative top-[2px] font-medium">{goalFat}g</Text>
             </View>
           </View>

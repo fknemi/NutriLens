@@ -13,7 +13,22 @@ import { useStepCounter } from "@/hooks/use-step-counter";
 import { getCountry } from "@/services/geo";
 import { searchFoods } from "@/services/usda";
 import { downloadCountryDatabase } from "@/services/open-food-facts";
-
+import { useActivityStore } from "@/stores/useActivityStore";
+import { useAllergensStore } from "@/stores/useAllergensStore";
+import { useDetectionStore } from "@/stores/useDetectionStore";
+import { useDietStore } from "@/stores/useDietStore";
+import { useDislikedIngredientsStore } from "@/stores/useDislikedIngredientsStore";
+import { useGoalsStore } from "@/stores/useGoalsStore";
+import { useHeaderStore } from "@/stores/useHeaderStore";
+import { useHydrationStore } from "@/stores/useHydrationStore";
+import { useMealsStore } from "@/stores/useMealsStore";
+import { useRecipesStore } from "@/stores/useRecipesStore";
+import { useScannedFoodStore } from "@/stores/useScannedFoodStore";
+import { useSearchStore } from "@/stores/useSearchStore";
+import { useSleepStore } from "@/stores/useSleepStore";
+import { useStepStore } from "@/stores/useStepStore";
+import { useTabStore } from "@/stores/useTabStore";
+import { useUserStore } from "@/stores/useUserStore";
 SplashScreen.preventAutoHideAsync();
 
 const styles = StyleSheet.create({
@@ -23,6 +38,41 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F8F7",
   },
 });
+
+
+const allStores = {
+  useActivityStore,
+  useAllergensStore,
+  useDetectionStore,
+  useDietStore,
+  useDislikedIngredientsStore,
+  useGoalsStore,
+  useHeaderStore,
+  useHydrationStore,
+  useMealsStore,
+  useRecipesStore,
+  useScannedFoodStore,
+  useSearchStore,
+  useSleepStore,
+  useStepStore,
+  useTabStore,
+  useUserStore,
+} as const;
+
+function logAllStores() {
+  const snapshot: Record<string, unknown> = {};
+  for (const [name, useStoreHook] of Object.entries(allStores)) {
+    try {
+      snapshot[name] = (useStoreHook as any).getState();
+    } catch (err) {
+      snapshot[name] = { __error: String(err) };
+    }
+  }
+  console.log(
+    `[store-snapshot @ ${new Date().toLocaleTimeString()}]`,
+    JSON.stringify(snapshot, null, 2),
+  );
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -95,7 +145,11 @@ export default function RootLayout() {
       console.error(err);
     }
   }, []);
-
+ useEffect(() => {
+    logAllStores(); // fire once immediately on mount
+    const interval = setInterval(logAllStores, 10_000);
+    return () => clearInterval(interval);
+  }, []);
   if (!loaded) return null;
 
   return (

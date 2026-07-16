@@ -15,25 +15,25 @@ export function useStepCounter() {
     async function start() {
       checkAndResetForNewDay();
       baselineRef.current = useStepStore.getState().steps;
-      console.log('🦶 Step counter starting, baseline:', baselineRef.current);
+      console.log('Step counter starting, baseline:', baselineRef.current);
 
       if (Platform.OS === 'ios') {
         const { status } = await Pedometer.requestPermissionsAsync();
-        console.log('🔐 iOS permission:', status);
+        console.log('iOS permission:', status);
         if (status !== 'granted') return;
       }
 
       if (Platform.OS === 'android') {
         const { status } = await Pedometer.requestPermissionsAsync();
-        console.log('🔐 Android permission:', status);
+        console.log('Android permission:', status);
         if (status !== 'granted') {
-          console.warn('❌ Activity recognition permission denied');
+          console.warn('Activity recognition permission denied');
           return;
         }
       }
 
       const isAvailable = await Pedometer.isAvailableAsync();
-      console.log('📱 Pedometer available:', isAvailable);
+      console.log('Pedometer available:', isAvailable);
       if (!isAvailable) return;
 
       if (Platform.OS === 'ios') {
@@ -42,7 +42,7 @@ export function useStepCounter() {
         midnight.setHours(0, 0, 0, 0);
         try {
           const { steps: todaySteps } = await Pedometer.getStepCountAsync(midnight, now);
-          console.log('📊 iOS steps from midnight:', todaySteps);
+          console.log('iOS steps from midnight:', todaySteps);
           if (mounted) setSteps(todaySteps);
         } catch (e) {
           console.warn('iOS step query failed:', e);
@@ -54,7 +54,7 @@ export function useStepCounter() {
           midnight2.setHours(0, 0, 0, 0);
           try {
             const { steps: todaySteps } = await Pedometer.getStepCountAsync(midnight2, now2);
-            console.log('👟 iOS live steps:', todaySteps);
+            console.log('iOS live steps:', todaySteps);
             if (mounted) setSteps(todaySteps);
           } catch (e) {
             console.warn('iOS step update failed:', e);
@@ -63,12 +63,12 @@ export function useStepCounter() {
       } else {
         subscriptionRef.current = Pedometer.watchStepCount(({ steps: delta }) => {
           const total = baselineRef.current + delta;
-          console.log('👟 Android delta:', delta, '→ total:', total);
+          console.log('Android delta:', delta, '→ total:', total);
           if (mounted) setSteps(total);
         });
       }
 
-      console.log('✅ Pedometer subscription active:', !!subscriptionRef.current);
+      console.log('Pedometer subscription active:', !!subscriptionRef.current);
     }
 
     start();

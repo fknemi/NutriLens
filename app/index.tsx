@@ -8,7 +8,7 @@ export default function Index() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
   useEffect(() => {
-    // 💡 TODO: Replace this with your actual auth/store check!
+    //  TODO: Replace this with your actual auth/store check!
     // Example: const user = await checkUserSession();
     // Example: const onboardingStatus = await AsyncStorage.getItem('onboardingComplete');
     

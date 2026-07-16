@@ -1,39 +1,70 @@
-// app/(tabs)/meditation.tsx
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   Dimensions,
   Modal,
-} from 'react-native';
+  Pressable,
+} from "react-native";
 import Animated, {
   useSharedValue,
   withTiming,
   useAnimatedStyle,
   cancelAnimation,
   Easing,
-} from 'react-native-reanimated';
-import { useState, useEffect } from 'react';
-import { Stack } from 'expo-router';
+  withRepeat,
+  withSequence,
+} from "react-native-reanimated";
+import { useState, useEffect } from "react";
+import { Stack, useRouter } from "expo-router";
+import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
+import { useMeditationStore } from "@/stores/useMeditationStore";
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
+const CIRCLE_SIZE = width * 0.75;
 
 const TECHNIQUES = [
-  { key: 'box',  label: 'Box',   sub: '4-4-4-4',  phases: [4, 4, 4, 4] },
-  { key: '478',  label: '4-7-8',  sub: 'Relaxing', phases: [4, 7, 8, 0] },
-  { key: 'deep', label: 'Deep',   sub: '4-0-6-0',  phases: [4, 0, 6, 0] },
+  {
+    key: "box",
+    label: "Box Breathing",
+    sub: "4-4-4-4",
+    phases: [4, 4, 4, 4],
+    color: "#D8F06C",
+  },
+  {
+    key: "478",
+    label: "Deep Relax",
+    sub: "4-7-8",
+    phases: [4, 7, 8, 0],
+    color: "#E6CCEE",
+  },
+  {
+    key: "calm",
+    label: "Calm Mind",
+    sub: "4-0-6-0",
+    phases: [4, 0, 6, 0],
+    color: "#FFB0B0",
+  },
 ];
 
-const PHASE_LABELS = ['Inhale', 'Hold', 'Exhale', 'Hold'];
+const PHASE_LABELS = ["Inhale", "Hold", "Exhale", "Hold"];
+const PHASE_INSTRUCTIONS = [
+  "Breathe in slowly through your nose",
+  "Hold your breath",
+  "Release slowly through your mouth",
+  "Rest and wait",
+];
 
 function formatTime(s: number) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
-  return `${m}:${sec.toString().padStart(2, '0')}`;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
 export default function MeditationScreen() {
+  const router = useRouter();
+  const addSession = useMeditationStore((s) => s.addSession);
+
   const [active, setActive] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [techniqueIdx, setTechniqueIdx] = useState(0);
@@ -41,32 +72,57 @@ export default function MeditationScreen() {
   const [countdown, setCountdown] = useState(0);
   const [sessionSeconds, setSessionSeconds] = useState(0);
 
-  const scale = useSharedValue(0.65);
-  const glow = useSharedValue(0.3);
+  const scale = useSharedValue(0.7);
+  const opacity = useSharedValue(0.4);
+  const pulse = useSharedValue(1);
+
   const technique = TECHNIQUES[techniqueIdx];
 
-  // Animate circle on phase change
+  useEffect(() => {
+    if (!active && !showOptionsModal) {
+      pulse.value = withRepeat(
+        withSequence(
+          withTiming(1.05, {
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
+    } else {
+      cancelAnimation(pulse);
+      pulse.value = 1;
+    }
+  }, [active, showOptionsModal]);
+
   useEffect(() => {
     if (!active) return;
     const duration = technique.phases[phase] * 1000;
     if (duration === 0) return;
 
     if (phase === 0) {
-      scale.value = withTiming(1, { duration, easing: Easing.inOut(Easing.ease) });
-      glow.value = withTiming(1, { duration });
+      scale.value = withTiming(1, {
+        duration,
+        easing: Easing.out(Easing.cubic),
+      });
+      opacity.value = withTiming(1, { duration });
     } else if (phase === 1) {
       scale.value = withTiming(1, { duration: 200 });
     } else if (phase === 2) {
-      scale.value = withTiming(0.65, { duration, easing: Easing.inOut(Easing.ease) });
-      glow.value = withTiming(0.3, { duration });
+      scale.value = withTiming(0.7, {
+        duration,
+        easing: Easing.inOut(Easing.quad),
+      });
+      opacity.value = withTiming(0.4, { duration });
     } else {
-      scale.value = withTiming(0.65, { duration: 200 });
+      scale.value = withTiming(0.7, { duration: 200 });
     }
   }, [phase, active, techniqueIdx]);
 
-  // Phase countdown
   useEffect(() => {
-    if (!active || showOptionsModal) return; // Pause countdown if modal is open
+    if (!active || showOptionsModal) return;
     const phaseDuration = technique.phases[phase];
 
     if (phaseDuration === 0) {
@@ -88,16 +144,15 @@ export default function MeditationScreen() {
     return () => clearInterval(interval);
   }, [phase, active, techniqueIdx, showOptionsModal]);
 
-  // Session timer
   useEffect(() => {
-    if (!active || showOptionsModal) return; // Pause session timer if modal is open
+    if (!active || showOptionsModal) return;
     const interval = setInterval(() => setSessionSeconds((s) => s + 1), 1000);
     return () => clearInterval(interval);
   }, [active, showOptionsModal]);
 
   function toggle() {
     if (active) {
-      setShowOptionsModal(true); // Open the options modal instead of quitting instantly
+      setShowOptionsModal(true);
     } else {
       setActive(true);
       setPhase(0);
@@ -105,114 +160,202 @@ export default function MeditationScreen() {
   }
 
   function quitSession() {
+    if (sessionSeconds > 0) addSession(sessionSeconds);
+
     setShowOptionsModal(false);
     setActive(false);
     setPhase(0);
     setCountdown(0);
     setSessionSeconds(0);
+
     cancelAnimation(scale);
-    cancelAnimation(glow);
-    scale.value = withTiming(0.65, { duration: 600 });
-    glow.value = withTiming(0.3, { duration: 600 });
+    cancelAnimation(opacity);
+    scale.value = withTiming(0.7, { duration: 600 });
+    opacity.value = withTiming(0.4, { duration: 600 });
+
+    router.back();
   }
 
   const animatedRing = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: glow.value,
+    transform: [{ scale: scale.value * pulse.value }],
+    opacity: opacity.value,
   }));
 
   const animatedInner = useAnimatedStyle(() => ({
-    transform: [{ scale: 0.55 + scale.value * 0.1 }],
+    transform: [{ scale: 0.6 + scale.value * 0.1 }],
   }));
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.container}>
-        
-        {/* Session timer */}
-        <Text style={styles.sessionTimer}>{formatTime(sessionSeconds)}</Text>
-
-        {/* Technique selector */}
-        <View style={styles.techniqueRow}>
-          {TECHNIQUES.map((t, i) => (
-            <TouchableOpacity
-              key={t.key}
-              onPress={() => { if (!active) setTechniqueIdx(i); }}
-              style={[styles.techBtn, techniqueIdx === i && styles.techBtnActive]}
-            >
-              <Text style={[styles.techLabel, techniqueIdx === i && styles.techLabelActive]}>
-                {t.label}
-              </Text>
-              <Text style={[styles.techSub, techniqueIdx === i && styles.techSubActive]}>
-                {t.sub}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      <Stack.Screen options={{ headerShown: false, animation: "fade" }} />
+      <View className="flex-1 bg-[#130822] items-center justify-between px-6 pt-16 pb-12">
+        <View className="w-full flex-row justify-between items-center px-2">
+          <Pressable
+            onPress={() => (active ? setShowOptionsModal(true) : router.back())}
+            className="w-12 h-12 rounded-full bg-white/10 items-center justify-center"
+          >
+            <Text className="text-white/60 text-xl font-bold">✕</Text>
+          </Pressable>
+          <View className="bg-white/10 px-4 py-2 rounded-full">
+            <Text className="text-white/80 font-medium tracking-widest text-base">
+              {formatTime(sessionSeconds)}
+            </Text>
+          </View>
+          <View className="w-12" />
         </View>
 
-        {/* Breathing circle */}
-        <View style={styles.circleWrap}>
-          <Animated.View style={[styles.outerRing, animatedRing]} />
-          <Animated.View style={[styles.innerCircle, animatedInner]}>
+        <View
+          className="items-center justify-center relative my-8"
+          style={{ width: CIRCLE_SIZE, height: CIRCLE_SIZE }}
+        >
+          <Animated.View
+            style={[
+              animatedRing,
+              { position: "absolute", width: CIRCLE_SIZE, height: CIRCLE_SIZE },
+            ]}
+          >
+            <Svg height="100%" width="100%" viewBox="0 0 100 100">
+              <Defs>
+                <RadialGradient id="glow" cx="50" cy="50" r="50">
+                  <Stop
+                    offset="0%"
+                    stopColor={technique.color}
+                    stopOpacity="0.4"
+                  />
+                  <Stop
+                    offset="100%"
+                    stopColor={technique.color}
+                    stopOpacity="0"
+                  />
+                </RadialGradient>
+              </Defs>
+              <Circle cx="50" cy="50" r="50" fill="url(#glow)" />
+            </Svg>
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              animatedRing,
+              {
+                position: "absolute",
+                width: CIRCLE_SIZE * 0.9,
+                height: CIRCLE_SIZE * 0.9,
+                borderRadius: CIRCLE_SIZE,
+                borderWidth: 2,
+                borderColor: technique.color,
+                opacity: 0.8,
+              },
+            ]}
+          />
+
+          <Animated.View
+            style={[
+              animatedInner,
+              {
+                width: CIRCLE_SIZE * 0.55,
+                height: CIRCLE_SIZE * 0.55,
+                borderRadius: CIRCLE_SIZE,
+                backgroundColor: "rgba(255,255,255,0.05)",
+              },
+            ]}
+            className="items-center justify-center absolute"
+          >
             {active ? (
               <>
-                <Text style={styles.phaseLabel}>{PHASE_LABELS[phase]}</Text>
-                <Text style={styles.phaseCount}>{countdown}</Text>
+                <Text className="text-white/80 text-xl font-medium tracking-widest mb-1">
+                  {PHASE_LABELS[phase]}
+                </Text>
+                <Text className="text-white text-6xl font-light tabular-nums">
+                  {countdown}
+                </Text>
               </>
             ) : (
-              <Text style={styles.readyText}>Ready</Text>
+              <Text className="text-white/50 text-xl tracking-widest font-light">
+                Ready
+              </Text>
             )}
           </Animated.View>
         </View>
 
-        {/* Phase steps */}
-        <View style={styles.stepsRow}>
-          {PHASE_LABELS.map((label, i) => {
-            const dur = technique.phases[i];
-            if (dur === 0) return null;
-            const isActive = active && phase === i;
-            return (
-              <View key={i} style={[styles.step, isActive && styles.stepActive]}>
-                <Text style={[styles.stepLabel, isActive && styles.stepLabelActive]}>{label}</Text>
-                <Text style={[styles.stepDur, isActive && styles.stepDurActive]}>{dur}s</Text>
-              </View>
-            );
-          })}
+        <View className="h-12 items-center justify-center mb-4">
+          <Text className="text-white/60 text-base text-center px-8">
+            {active
+              ? PHASE_INSTRUCTIONS[phase]
+              : "Find a comfortable position and relax your shoulders."}
+          </Text>
         </View>
 
-        {/* Begin / Stop */}
-        <TouchableOpacity onPress={toggle} style={[styles.btn, active && styles.btnStop]}>
-          <Text style={[styles.btnText, active && styles.btnTextStop]}>
-            {active ? 'Stop' : 'Begin'}
+        <View className="w-full mb-8">
+          <View className="flex-row justify-between gap-3">
+            {TECHNIQUES.map((t, i) => (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => {
+                  if (!active) setTechniqueIdx(i);
+                }}
+                activeOpacity={0.7}
+                className={`flex-1 rounded-2xl p-4 items-center justify-center border ${
+                  techniqueIdx === i
+                    ? "bg-white/10 border-white/20"
+                    : "bg-transparent border-transparent"
+                }`}
+              >
+                <Text
+                  className={`font-medium mb-1 ${techniqueIdx === i ? "text-white" : "text-white/40"}`}
+                >
+                  {t.label}
+                </Text>
+                <Text
+                  className={`text-xs ${techniqueIdx === i ? "text-white/60" : "text-white/20"}`}
+                >
+                  {t.sub}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <TouchableOpacity
+          onPress={toggle}
+          activeOpacity={0.8}
+          className={`w-full h-16 rounded-full items-center justify-center ${active ? "bg-white/10" : "bg-white"}`}
+        >
+          <Text
+            className={`text-xl font-semibold tracking-wide ${active ? "text-white" : "text-[#130822]"}`}
+          >
+            {active ? "Pause Session" : "Begin Journey"}
           </Text>
         </TouchableOpacity>
-
       </View>
 
-      {/* Full Screen Options Modal */}
       <Modal
         visible={showOptionsModal}
         animationType="fade"
         transparent={true}
         onRequestClose={() => setShowOptionsModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <Text style={styles.modalTitle}>Session Paused</Text>
-          
-          <View style={styles.modalButtonGroup}>
-            <TouchableOpacity 
-              style={styles.modalBtnResume} 
+        <View className="flex-1 bg-black/80 justify-center items-center px-8">
+          <Text className="text-white text-3xl font-light tracking-wide mb-12">
+            Session Paused
+          </Text>
+
+          <View className="w-full max-w-sm gap-4">
+            <TouchableOpacity
+              className="bg-white py-4 rounded-full items-center"
               onPress={() => setShowOptionsModal(false)}
             >
-              <Text style={styles.modalBtnResumeText}>Resume Breathing</Text>
+              <Text className="text-[#130822] text-lg font-semibold tracking-wide">
+                Resume Breathing
+              </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.modalBtnQuit} 
+            <TouchableOpacity
+              className="bg-white/10 py-4 rounded-full items-center border border-white/10"
               onPress={quitSession}
             >
-              <Text style={styles.modalBtnQuitText}>Quit Meditation</Text>
+              <Text className="text-white/80 text-lg font-medium tracking-wide">
+                End & Save Session
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -220,189 +363,3 @@ export default function MeditationScreen() {
     </>
   );
 }
-
-const CIRCLE = width * 0.72;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    paddingVertical: 64,
-    paddingHorizontal: 24,
-  },
-  sessionTimer: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 15,
-    letterSpacing: 2,
-    fontFamily: 'Geologica-Light',
-  },
-  techniqueRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  techBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-  },
-  techBtnActive: {
-    backgroundColor: '#fff',
-  },
-  techLabel: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 14,
-    fontFamily: 'Geologica-Medium',
-  },
-  techLabelActive: {
-    color: '#fff',
-  },
-  techSub: {
-    color: 'rgba(255,255,255,0.25)',
-    fontSize: 11,
-    marginTop: 2,
-    fontFamily: 'Geologica-Light',
-  },
-  techSubActive: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  circleWrap: {
-    width: CIRCLE,
-    height: CIRCLE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  outerRing: {
-    position: 'absolute',
-    width: CIRCLE,
-    height: CIRCLE,
-    borderRadius: CIRCLE / 2,
-    backgroundColor: '#780B9F',
-  },
-  innerCircle: {
-    width: CIRCLE * 0.62,
-    height: CIRCLE * 0.62,
-    borderRadius: (CIRCLE * 0.62) / 2,
-    backgroundColor: '#1A0A2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  phaseLabel: {
-    color: '#E6CCEE',
-    fontSize: 22,
-    fontFamily: 'Geologica-Light',
-    letterSpacing: 1,
-  },
-  phaseCount: {
-    color: '#fff',
-    fontSize: 44,
-    fontFamily: 'Geologica-Thin',
-    marginTop: 4,
-  },
-  readyText: {
-    color: 'rgba(255,255,255,0.3)',
-    fontSize: 20,
-    fontFamily: 'Geologica-Light',
-    letterSpacing: 1,
-  },
-  stepsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  step: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    minWidth: 68,
-  },
-  stepActive: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  stepLabel: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 12,
-    fontFamily: 'Geologica-Regular',
-  },
-  stepLabelActive: {
-    color: '#E6CCEE',
-  },
-  stepDur: {
-    color: 'rgba(255,255,255,0.2)',
-    fontSize: 18,
-    fontFamily: 'Geologica-Light',
-    marginTop: 2,
-  },
-  stepDurActive: {
-    color: '#fff',
-  },
-  btn: {
-    backgroundColor: '#780B9F',
-    paddingHorizontal: 56,
-    paddingVertical: 18,
-    borderRadius: 100,
-  },
-  btnStop: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  btnText: {
-    color: '#fff',
-    fontSize: 18,
-    fontFamily: 'Geologica-Medium',
-    letterSpacing: 0.5,
-  },
-  btnTextStop: {
-    color: 'rgba(255,255,255,0.5)',
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(19, 8, 34, 0.95)', // Matches your dark theme
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalTitle: {
-    color: '#fff',
-    fontSize: 28,
-    fontFamily: 'Geologica-Light',
-    marginBottom: 48,
-    letterSpacing: 1,
-  },
-  modalButtonGroup: {
-    width: '100%',
-    maxWidth: 320,
-    gap: 16,
-  },
-  modalBtnResume: {
-    backgroundColor: '#fff',
-    paddingVertical: 18,
-    borderRadius: 100,
-    alignItems: 'center',
-  },
-  modalBtnResumeText: {
-    color: '#fff',
-    fontSize: 18,
-    fontFamily: 'Geologica-Medium',
-    letterSpacing: 0.5,
-  },
-  modalBtnQuit: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingVertical: 18,
-    borderRadius: 100,
-    alignItems: 'center',
-  },
-  modalBtnQuitText: {
-    color: '#E6CCEE',
-    fontSize: 18,
-    fontFamily: 'Geologica-Medium',
-    letterSpacing: 0.5,
-  },
-});
